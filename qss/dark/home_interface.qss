@@ -1,0 +1,29 @@
+ItemCard {
+    background-color: rgb(30, 30, 30);
+    border-radius: 8px;
+    color: rgb(255, 255, 255);
+    font: 25px 'Segoe UI', 'PingFang SC';
+}
+ItemCard[isSelected=true]{
+    border: 2px solid rgb(0, 174, 255);
+}
+
+ItemCard:hover{
+    border: 2px solid rgb(112, 112, 112);
+}
+
+ItemCard:hover[isSelected=true]{
+    border: 2px solid rgb(0, 174, 255);
+}
+
+#flowwidget,#ItemView{
+    background-color: rgb(39, 39, 39);
+}
+
+ItemCardView{
+    background-color: transparent;
+}
+
+SmoothScrollArea{
+    border: 0px solid rgb(39, 39, 39);
+}
