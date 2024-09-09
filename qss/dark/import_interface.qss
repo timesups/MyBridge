@@ -1,0 +1,28 @@
+
+ImportItemButton > QLabel{
+    color: rgb(120, 120, 120);
+    font: 15px 'Segoe UI', 'Microsoft YaHei', 'PingFang SC';
+}
+
+ImportItemButton > QLabel:hover{
+    color: rgb(255, 255, 255);
+    font: 15px 'Segoe UI', 'Microsoft YaHei', 'PingFang SC';
+}
+
+InportSettings
+{
+    background-color: rgb(39, 39, 39);
+}
+#ImportInterfaceSwicthWidget{
+    background-color: rgb(39, 39, 39);
+}
+#ImportItemButtonTitleLabel{
+    color: rgb(120, 120, 120);
+    font: 25px 'Segoe UI', 'Microsoft YaHei', 'PingFang SC';
+}
+
+
+LineEidtGroup > QLabel{
+    color: rgb(255, 255, 255);
+    font: 15px 'Segoe UI', 'Microsoft YaHei', 'PingFang SC';
+}

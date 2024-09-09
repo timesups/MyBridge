@@ -9,6 +9,7 @@ from qfluentwidgets import StyleSheetBase,Theme,isDarkTheme,qconfig
 
 class StyleSheet(StyleSheetBase,Enum):
     HOME_INTERFACE = "home_interface"
+    IMPORT_INTERFACE = "import_interface"
     SETTING_INTERFACE = "setting_interface"
     
     def path(self,theme=Theme.AUTO):

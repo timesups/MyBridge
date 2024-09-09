@@ -1,20 +1,19 @@
-from qfluentwidgets import (NavigationItemPosition,FluentWindow,SubtitleLabel,setFont,SplitFluentWindow,setTheme,
-                            Theme,FlowLayout,PushButton,SmoothScrollArea,applyThemeColor,SearchLineEdit,
+from qfluentwidgets import (NavigationItemPosition,FluentWindow,SubtitleLabel,
+                            setFont,SplitFluentWindow,setTheme,
+                            Theme,FlowLayout,PushButton,
+                            SmoothScrollArea,applyThemeColor,SearchLineEdit,
                             ComboBox,NavigationTreeWidget,ImageLabel,TitleLabel)
 from qfluentwidgets import FluentIcon as FIF
 
 
 from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
                              QFrame,QHBoxLayout,QVBoxLayout,
-                             QAction,QStyleOption)
+                             QAction,QStyleOption,QGraphicsDropShadowEffect)
 from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QImage,QPixmap,QColor, 
                          QResizeEvent)
 from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,pyqtSignal
 
-
-import sys
-import math
 
 from core.Log import log
 from core.style_sheet import StyleSheet
@@ -57,30 +56,74 @@ class ItemCard(QFrame):
         self.setProperty("isSelected",self.isSelected)
         self.setStyle(QApplication.style())
 
+
 class InfoPanel(QFrame):
     def __init__(self,parent):
         super().__init__(parent=parent)
         self.setFixedWidth(400)
-
+        self.shadowWidth = 20
 
         self.rootLayout = QVBoxLayout(self)
-        self.scrollArea = SmoothScrollArea(self)
+        self.titleImage = ImageLabel(scaleMap(self.width(),200,"image\Kettle.png"),self)
 
-        self.scrollWidget = QWidget(self.scrollArea)
-        self.scrollWidgetLayout = QHBoxLayout(self.scrollWidget)
+        self.titelWidget = QWidget(self)
+        self.titelWidgetLayout = QVBoxLayout(self.titelWidget)
 
-        self.titleImage = ImageLabel(scaleMap(self.width(),300,"image\Kettle.png"),self.scrollWidget)
-        
+        self.titleLabel = TitleLabel("Test",self.titelWidget)
 
-        
+
 
 
         self.__initWidget()
     def __initWidget(self):
-        self.rootLayout.addWidget(self.scrollArea)
-        self.scrollArea.setWidget(self.scrollWidget)
-        pass
+        self.rootLayout.addWidget(self.titleImage,alignment=Qt.AlignTop)
+        self.rootLayout.addWidget(self.titelWidget,alignment=Qt.AlignTop)
 
+        self.titelWidget.setObjectName("InfoPanelTitleWidget")
+        self.titelWidgetLayout.addWidget(self.titleLabel)
+
+        
+class ItemHeader(QFrame):
+    def __init__(self,parent):
+        super().__init__(parent=parent)
+        self.rootLayout = QVBoxLayout(self)
+        
+        self.headerWidget = QWidget(self)
+        self.headerWidgetLayout = QVBoxLayout(self.headerWidget)
+
+        self.searchBar = SearchLineEdit(self.headerWidget)
+
+
+        self.comboxWidget = QWidget(self.headerWidget)
+        self.comboxWidgetLayout = QHBoxLayout(self.comboxWidget)
+
+        self.combox1 = ComboBox(self.comboxWidget)
+        self.combox1.addItem("Test")
+        self.combox1.addItem("Test")
+        self.combox1.addItem("Test")
+
+        self.combox2 = ComboBox(self.comboxWidget)
+        self.combox2.addItem("Test")
+        self.combox2.addItem("Test")
+        self.combox2.addItem("Test")
+
+        self.combox3 = ComboBox(self.comboxWidget)
+        self.combox3.addItem("Test")
+        self.combox3.addItem("Test")
+        self.combox3.addItem("Test")
+
+        self.__initWidget()
+    def __initWidget(self):
+        self.rootLayout.addWidget(self.headerWidget)
+        self.rootLayout.setContentsMargins(15,15,15,15)
+        self.headerWidgetLayout.addWidget(self.searchBar)
+        self.headerWidgetLayout.addWidget(self.comboxWidget)
+        self.headerWidgetLayout.setContentsMargins(0,0,0,0)
+
+        self.comboxWidgetLayout.addWidget(self.combox1)
+        self.comboxWidgetLayout.addWidget(self.combox2)
+        self.comboxWidgetLayout.addWidget(self.combox3)
+        self.comboxWidgetLayout.setContentsMargins(0,0,0,0)
 
 class ItemCardView(QWidget):
     def __init__(self,parent=None):
@@ -101,7 +144,6 @@ class ItemCardView(QWidget):
         self.scrollArea = SmoothScrollArea(self.view)
         self.infoPanel = InfoPanel(self)
         self.infoPanelLayout = QVBoxLayout(self.infoPanel)
-
 
         self.flowWidget = QWidget(self.scrollArea)
         self.flowLayout = FlowLayout(self.flowWidget,False,True)
@@ -127,6 +169,8 @@ class ItemCardView(QWidget):
         self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scrollArea.backgroundRole()
         self.scrollArea.setViewportMargins(0,0,0,0)
+        self.scrollArea.setObjectName("ItemCardViewScrollArea")
+
 
         self.flowWidget.setObjectName("flowwidget")
 
@@ -134,7 +178,7 @@ class ItemCardView(QWidget):
         self.flowLayout.setVerticalSpacing(self.perItemSpacing)
         self.flowLayout.setHorizontalSpacing(self.perItemSpacing)
         self.flowLayout.setContentsMargins(self.flowLayoutSideMargins,0,self.flowLayoutSideMargins,0)
-        self.flowLayout.setAnimation(1)
+        self.flowLayout.setAnimation(250, QEasingCurve.OutQuad)
 
     def showAllCards(self):
         self.flowLayout.removeAllWidgets()
@@ -155,47 +199,27 @@ class ItemCardView(QWidget):
             self.cards[index].setSelected(True)
         
         self.currentSelectedIndex = index
-        
 
     def resizeEvent(self, a0: QResizeEvent | None) -> None:
+        itemsPerRow = 3
         width = self.flowWidget.width()-2 * self.flowLayoutSideMargins
-        cardSize = round(width/4 - 2 * self.perItemSpacing )
-        if cardSize < 128:
-            cardSize = round(1000/4 - 2 * self.perItemSpacing )
-        if cardSize > 250:
-            cardSize = round(width/5- 2 * self.perItemSpacing )
+        if width <= self.initPerItemCardSize:
+            width = 685
+        if width < 412:
+            itemsPerRow = 2
+        elif width > 685 and width < 1200:
+            itemsPerRow = 4
+        elif width > 1200:
+            itemsPerRow = 5
+        cardSize = round(width/itemsPerRow - 2 * self.perItemSpacing )
         self.setPerCardSize(cardSize)
-        return super().resizeEvent(a0)
 
-class ItemCardMain(QWidget):
+
+class HomeInterface(QWidget):
     def __init__(self,parent=None):
         super().__init__(parent)
         self.rootLayout = QVBoxLayout(self)
-
-        self.headerWidget = QWidget(self)
-        self.headerWidgetLayout = QVBoxLayout(self.headerWidget)
-
-        self.searchBar = SearchLineEdit(self.headerWidget)
-
-
-        self.comboxWidget = QWidget(self.headerWidget)
-        self.comboxWidgetLayout = QHBoxLayout(self.comboxWidget)
-
-        self.combox1 = ComboBox(self.comboxWidget)
-        self.combox1.addItem("Test")
-        self.combox1.addItem("Test")
-        self.combox1.addItem("Test")
-
-        self.combox2 = ComboBox(self.comboxWidget)
-        self.combox2.addItem("Test")
-        self.combox2.addItem("Test")
-        self.combox2.addItem("Test")
-
-        self.combox3 = ComboBox(self.comboxWidget)
-        self.combox3.addItem("Test")
-        self.combox3.addItem("Test")
-        self.combox3.addItem("Test")
-
+        self.item_header = ItemHeader(self)
 
         self.item_card_view = ItemCardView(self)
         self.item_card_view.addItemCard()
@@ -206,38 +230,38 @@ class ItemCardMain(QWidget):
         self.item_card_view.addItemCard()
         self.item_card_view.addItemCard()
         self.item_card_view.addItemCard()
+        self.item_card_view.addItemCard()
+        self.item_card_view.addItemCard()
+        self.item_card_view.addItemCard()
+        self.item_card_view.addItemCard()
+        self.item_card_view.addItemCard()
+        self.item_card_view.addItemCard()
+        self.item_card_view.addItemCard()
+        self.item_card_view.addItemCard()
+        self.item_card_view.addItemCard()
+        self.item_card_view.addItemCard()
+        self.item_card_view.addItemCard()
+        self.item_card_view.addItemCard()
         self.item_card_view.showAllCards()
-
 
         self.__initWidget()
         self.__initConnection()
         self.__setQss()
+        self.setObjectName("home_interface")
 
     def __initWidget(self):
-        self.rootLayout.addWidget(self.headerWidget)
+        self.rootLayout.addWidget(self.item_header)
         self.rootLayout.addWidget(self.item_card_view)
-        self.headerWidgetLayout.addWidget(self.searchBar)
-        self.headerWidgetLayout.addWidget(self.comboxWidget)
 
-        self.comboxWidgetLayout.addWidget(self.combox1)
-        self.comboxWidgetLayout.addWidget(self.combox2)
-        self.comboxWidgetLayout.addWidget(self.combox3)
+        self.rootLayout.setContentsMargins(0,0,0,0)
     def __initConnection(self):
         pass
     def __setQss(self):
         StyleSheet.HOME_INTERFACE.apply(self)
         StyleSheet.HOME_INTERFACE.apply(self.item_card_view)
-        pass
-
-class HomeInterface(QWidget):
-    """ Icon interface """
-
-    def __init__(self, parent=None):
-        super().__init__(parent=parent)
-        self.mainLayout = QHBoxLayout(self)
-        self.itemCard = ItemCardMain(self)
-        self.mainLayout.addWidget(self.itemCard)
+        StyleSheet.HOME_INTERFACE.apply(self.item_header)
 
 
 
-        self.setObjectName("home_interface")
+
+        

@@ -24,6 +24,15 @@ ItemCardView{
     background-color: transparent;
 }
 
-SmoothScrollArea{
+#ItemCardViewScrollArea{
     border: 0px solid rgb(39, 39, 39);
+}
+
+ItemHeader{
+    background-color: rgb(55, 55, 55);
+}
+
+
+#InfoPanelTitleWidget{
+    background-color: rgb(55, 55, 55);
 }
