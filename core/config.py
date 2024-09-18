@@ -1,4 +1,5 @@
 import os
+from tinydb import TinyDB, Query
 
 class Config:
     instance = None
@@ -6,8 +7,20 @@ class Config:
         self.AssetLibraryRoot = "E:\AssetLibrary"
         self.AssetDatasCache = os.path.join(self.AssetLibraryRoot,"AssetDataCache.json")
         self.AssetLibrary = os.path.join(self.AssetLibraryRoot,"Assets")
-        self.CurrentAssetIndex = 0
         self.__createFolders()
+        self.__initDB()
+    def __initDB(self):
+        self.dataBase = TinyDB(self.AssetDatasCache)
+    def isIDinDB(self,id:str):
+        user = Query()
+        result = self.dataBase.search(user.AssetID == id)
+        if result == []:
+            return False
+        return result
+    def addAssetToDB(self,assetData:dict):
+        self.dataBase.insert(assetData)
+    def getCurrentAssetCount(self)->int:
+        return len(self.dataBase.all())
     def __createFolders(self):
         if not os.path.exists(self.AssetLibraryRoot):
             os.makedirs(self.AssetLibraryRoot)

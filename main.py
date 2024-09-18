@@ -39,11 +39,15 @@ class MainWindow(FluentWindow):
         w, h = desktop.width(), desktop.height()
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
 
+
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     toggleTheme()
-    window = MainWindow()
+    window = ImportInterface()
     window.show()
+    window.resize(800,600)
     app.exec()
 
 

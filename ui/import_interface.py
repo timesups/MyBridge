@@ -24,8 +24,9 @@ from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve
 
 
 
+
 from core.common_widget import QLine
-from core.utility import AssetCategory,AssetSize,AssetSubccategory,AssetType,ClassifyFilesFormFolder,MakeAssetByData
+from core.utility import AssetCategory,AssetSize,AssetSubccategory,AssetType,ClassifyFilesFormFolder,MakeAssetByData,CopyAndRenameAsset
     
 
 class SelectFileLineEdit(LineEdit):
@@ -169,6 +170,7 @@ class ImportItemButton(QWidget):
         self.label.setText(text)
 
 class ImportSettings(QWidget):
+    onImported = pyqtSignal(ImportItemButton)
     def __init__(self, parent,rootpath:str = "."):
         super().__init__(parent)
         #value
@@ -182,7 +184,7 @@ class ImportSettings(QWidget):
         self.scrollArea = SmoothScrollArea(self)
         self.scrollWidget = QWidget(self.scrollArea)
         self.scrollWidgetLayout = QVBoxLayout(self.scrollWidget)
-
+        self.button = None
 
 
         self.label_nameTga = TitleLabel(self.tr("Import Settings"),self)
@@ -206,6 +208,7 @@ class ImportSettings(QWidget):
         self.checkobx_TillesHorizontically = CheckBox(self.tr("Tiles Horizontically"),self.widgetSize)
 
         self.group_texAlbedo = DirectiorySelectGroup(self,self.tr("Albedo"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texbrush = DirectiorySelectGroup(self,self.tr("Brush"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
         self.group_texAO = DirectiorySelectGroup(self,self.tr("AO"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
         self.group_texBump = DirectiorySelectGroup(self,self.tr("Bump"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
         self.group_texCavity= DirectiorySelectGroup(self,self.tr("Cavity"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
@@ -256,6 +259,7 @@ class ImportSettings(QWidget):
         self.scrollWidgetLayout.addWidget(QLine.HLine(self))
         self.scrollWidgetLayout.addWidget(self.group_texAlbedo)
         self.scrollWidgetLayout.addWidget(self.group_texAO)
+        self.scrollWidgetLayout.addWidget(self.group_texbrush)
         self.scrollWidgetLayout.addWidget(self.group_texBump)
         self.scrollWidgetLayout.addWidget(self.group_texCavity)
         self.scrollWidgetLayout.addWidget(self.group_texDiffuse)
@@ -335,9 +339,10 @@ class ImportSettings(QWidget):
     def importAsset(self):
         name = self.name.lineEdit.text()
         tags = self.tags.lineEdit.text()
-        type = AssetType._value2member_map_[self.widgetType.combox.currentText()]
+        type = self.widgetType.combox.currentText()
         albedo = self.group_texAlbedo.lineEdit.text()
         ao = self.group_texAO.lineEdit.text()
+        brush = self.group_texbrush.lineEdit.text()
         bump = self.group_texBump.lineEdit.text()
         cavity = self.group_texCavity.lineEdit.text()
         diffuse = self.group_texDiffuse.lineEdit.text()
@@ -356,37 +361,41 @@ class ImportSettings(QWidget):
         for lodwidget in self.lods:
             lods.append(lodwidget.lineEdit.text())
         previewImage = self.group_previewImage.lineEdit.text()
-
+        mapData = dict(
+            Albedo = albedo,
+            AO = ao,
+            Brush = brush,
+            Bump = bump,
+            Cavity = cavity,
+            Diffuse = diffuse,
+            Displacement = displacement,
+            Fuzz = fuzz,
+            Gloss = gloss,
+            Mask = mask,
+            Metalness = metalness,
+            Normal = normal,
+            Opacity = opacity,
+            Roughness = roughness,
+            Specular = specular,
+            Translucency = translucency,
+        )
         assetData = dict(
             name = name,
             tags = tags,
             type = type,
-            albedo = albedo,
-            ao = ao,
-            bump = bump,
-            cavity = cavity,
-            diffuse = diffuse,
-            displacement = displacement,
-            fuzz = fuzz,
-            gloss = gloss,
-            mask = mask,
-            metalness = metalness,
-            normal = normal,
-            opacity = opacity,
-            roughness = roughness,
-            specular = specular,
-            translucency = translucency,
+            mapData = mapData,
             orginMesh =orginMesh,
             lods = lods,
             previewImage = previewImage
         )
         asset = MakeAssetByData(assetData)
+        CopyAndRenameAsset(asset)
+        self.onImported.emit(self.button)
         
 
 
-
 class ImportInterface(QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         super().__init__(parent)
 
 
@@ -443,46 +452,108 @@ class ImportInterface(QWidget):
         self.addNewAssetButton.setFixedSize(23,23)
 
     def __initConnection(self):
-        self.addNewAssetButton.clicked.connect(self.addNewAsset)
-    def addNewAsset(self):
+        self.addNewAssetButton.clicked.connect(self.addItem)
+    def addItem(self)->None:
         folder = QFileDialog.getExistingDirectory(self,"选择资产目录")
+        if folder == "":
+            return
         files = ClassifyFilesFormFolder(folder)
-        imsettings = self.addItem(files["assetName"],folder)
-        
-    def addItem(self,assetName:str,rootPath:str=".")->ImportSettings:
+        assetName = files["assetName"]
+
         button = ImportItemButton(self.ImportItemButtonWidget,assetName)
         button.delete_clicked.connect(self.removeItem)
         button.clicked.connect(self.setCurrentItem)
-        importSettings = ImportSettings(self.switchWidget,rootPath)
+        importSettings = ImportSettings(self.switchWidget,folder)
         importSettings.name.lineEdit.textChanged.connect(button.setText)
         importSettings.name.lineEdit.setText(assetName)
+        importSettings.button = button
+        importSettings.onImported.connect(self.removeItem)
         self.items[button] = importSettings
         self.itemButtonListWidgetLayout.addWidget(button)
         self.switchWidget.addTab(importSettings,assetName)
         self.setCurrentItem(button)
-        return importSettings
-    def removeItem(self,button):
+
+        for image in files["images"]:
+            if "albedo" in image.lower():
+                importSettings.group_texAlbedo.lineEdit.setText(image)
+                importSettings.group_texAlbedo.checkbox.setChecked(True)
+            elif "ao" in image.lower():
+                importSettings.group_texAO.lineEdit.setText(image)
+                importSettings.group_texAO.checkbox.setChecked(True)
+            elif "cavity" in image.lower():
+                importSettings.group_texCavity.lineEdit.setText(image)
+                importSettings.group_texCavity.checkbox.setChecked(True)
+            elif "displacement" in image.lower():
+                importSettings.group_texDisplacement.lineEdit.setText(image)
+                importSettings.group_texDisplacement.checkbox.setChecked(True)
+            elif "fuzz" in image.lower():
+                importSettings.group_texFuzz.lineEdit.setText(image)
+                importSettings.group_texFuzz.checkbox.setChecked(True)
+            elif "gloss" in image.lower():
+                importSettings.group_texGloss.lineEdit.setText(image)
+                importSettings.group_texGloss.checkbox.setChecked(True)
+            elif "metallic" in image.lower():
+                importSettings.group_texMetalness.lineEdit.setText(image)
+                importSettings.group_texMetalness.checkbox.setChecked(True)
+            elif "normal" in image.lower() and "lod" not in image.lower():
+                importSettings.group_texNormal.lineEdit.setText(image)
+                importSettings.group_texNormal.checkbox.setChecked(True)
+            elif "roughness" in image.lower():
+                importSettings.group_texRoughness.lineEdit.setText(image)
+                importSettings.group_texRoughness.checkbox.setChecked(True)
+            elif "specular" in image.lower():
+                importSettings.group_texSpecular.lineEdit.setText(image)
+                importSettings.group_texSpecular.checkbox.setChecked(True)
+            elif ".jpg" in image.lower():
+                importSettings.group_previewImage.lineEdit.setText(image)
+                importSettings.group_previewImage.checkbox.setChecked(True)
+
+        if files["models"] == []:
+            importSettings.widgetType.combox.setCurrentText(AssetType.Surface.value)
+        lodIndexs = {}
+        for meshUri in files["models"]:
+            if ".fbx" in meshUri.lower() and "lod" not in meshUri.lower():
+                importSettings.OriginMesh.lineEdit.setText(meshUri)
+                importSettings.OriginMesh.checkbox.setChecked(True)
+            elif "lod" in meshUri.lower():
+                t = meshUri.lower().find("lod") + 3
+                level = meshUri[t:t+1]
+                lodIndexs[level] = meshUri
+        for i in range(len(lodIndexs)-1):
+            importSettings.addLod()
+        for l in lodIndexs.keys():
+            importSettings.lods[int(l)].lineEdit.setText(lodIndexs[l])
+            importSettings.lods[int(l)].checkbox.setChecked(True)
+        importSettings.refreshWidget()
+    def removeItem(self,button:ImportItemButton):
         importSettings = self.items[button]
+
+        self.switchWidget.tabCloseRequested
         for i in range(self.switchWidget.count()):
-            if self.switchWidget.currentWidget() == importSettings:
+            if self.switchWidget.widget(i) == importSettings:
                 self.switchWidget.removeTab(i)
         self.itemButtonListWidgetLayout.removeWidget(button)
         self.items.pop(button)
+        button.destroy(True,True)
         if button == self.currentButton:
             if len(self.items) != 0:
                 self.setCurrentItem(list(self.items.keys())[0])
             else:
                 self.setCurrentItem(None)
     def setCurrentItem(self,button:ImportItemButton):
+        
         if self.currentButton:
             self.currentButton.setSelected(False)
         if button:
             button.setSelected(True)
             importSettings = self.items[button]
-            for i in range(self.switchWidget.count()):
-                if self.switchWidget.currentWidget() == importSettings:
-                    self.switchWidget.setCurrentIndex(i)
+            
+            self.switchWidget.setCurrentWidget(importSettings)
         self.currentButton = button
     def __setQss(self):
         StyleSheet.IMPORT_INTERFACE.apply(self)
 
+
+
+
+    
