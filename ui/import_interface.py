@@ -4,30 +4,21 @@ from qfluentwidgets import (NavigationItemPosition,FluentWindow,SubtitleLabel,se
                             ComboBox,NavigationTreeWidget,toggleTheme,NavigationItemPosition,
                             TitleLabel,CheckBox,LineEdit,LineEditButton)
 from qfluentwidgets import FluentIcon as FIF
-
-
 from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
                              QFrame,QHBoxLayout,QVBoxLayout,
                              QAction,QLabel,QLineEdit,QTabWidget,
-                             QPushButton,QFileDialog)
+                             QPushButton,QFileDialog,QTabBar)
 from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QImage,QPixmap,QColor, 
-                         QResizeEvent)
-
+                         QResizeEvent,QPalette)
 from PyQt5.QtCore import QSize,pyqtSignal
-
-
-from core.style_sheet import StyleSheet
-
-
 from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve
-
-
 
 
 from core.common_widget import QLine
 from core.utility import AssetCategory,AssetSize,AssetSubccategory,AssetType,ClassifyFilesFormFolder,MakeAssetByData,CopyAndRenameAsset
-    
+from core.style_sheet import StyleSheet
+
 
 class SelectFileLineEdit(LineEdit):
     selectedFile = pyqtSignal()
@@ -57,8 +48,7 @@ class SelectFileLineEdit(LineEdit):
         self.filter = filter
     def setRootPath(self,path:str):
         self.rootPath = path
-
-        
+ 
 class DirectiorySelectGroup(QWidget):
     def __init__(self, parent,text:str,textMaxWidth:int = 50,title:str="选择一个文件",filter:str = "All Files(*)",rootPath:str="."):
         super().__init__(parent)
@@ -86,7 +76,6 @@ class DirectiorySelectGroup(QWidget):
     def selectFile(self):
         if self.checkbox.isChecked() and self.lineEdit.text() == "":
             self.lineEdit.selectFile()
-
 
 class LineEidtGroup(QWidget):
     def __init__(self, parent,text:str,textMaxWidth:int = 50):
@@ -123,10 +112,10 @@ class ComboxGroup(QWidget):
     def addItems(self,items:list[str]):
         self.combox.addItems(items)
 
-class ImportItemButton(QWidget):
-    clicked = pyqtSignal(QWidget)
-    delete_clicked = pyqtSignal(QWidget)
-    def __init__(self, parent,text:str):
+class TabBarButton(QWidget):
+    clicked = pyqtSignal(int)
+    delete_clicked = pyqtSignal(int)
+    def __init__(self, parent,text:str,index:int):
         super().__init__(parent)
         self.rootLayout = QHBoxLayout(self)
         self.selectedFlageWidth = 5
@@ -134,6 +123,7 @@ class ImportItemButton(QWidget):
         self.label = QLabel(self,text=text)
         self.isSelected = False
         self.button_delete = PushButton(self)
+        self.index = index
 
         self.__initWidget()
         self.__initConnection()
@@ -147,7 +137,7 @@ class ImportItemButton(QWidget):
         self.button_delete.setFixedSize(self.height()-2,self.height()-2)
         pass
     def __initConnection(self):
-        self.button_delete.clicked.connect(lambda :self.delete_clicked.emit(self))
+        self.button_delete.clicked.connect(lambda :self.delete_clicked.emit(self.index))
     def paintEvent(self, a0: QPaintEvent | None) -> None:
         super().paintEvent(a0) 
         if not self.isSelected:
@@ -165,14 +155,15 @@ class ImportItemButton(QWidget):
     def mousePressEvent(self, a0: QMouseEvent | None) -> None:
         if self.isSelected:
             return
-        self.clicked.emit(self)
+        self.clicked.emit(self.index)
     def setText(self,text:str):
         self.label.setText(text)
 
 class ImportSettings(QWidget):
-    onImported = pyqtSignal(ImportItemButton)
-    def __init__(self, parent,rootpath:str = "."):
+    onImported = pyqtSignal(int)
+    def __init__(self, parent,index:int,rootpath:str = "."):
         super().__init__(parent)
+        self.index = index
         #value
         self.maxTextWidth = 150
         self.texFilter = "png(*.png);;exr(*.exr);;jpeg(*.jpg)"
@@ -182,16 +173,15 @@ class ImportSettings(QWidget):
         self.rootLayout = QVBoxLayout(self)
 
         self.scrollArea = SmoothScrollArea(self)
-        self.scrollWidget = QWidget(self.scrollArea)
+        self.scrollWidget = QWidget(self)
         self.scrollWidgetLayout = QVBoxLayout(self.scrollWidget)
-        self.button = None
 
 
         self.label_nameTga = TitleLabel(self.tr("Import Settings"),self)
-        self.name = LineEidtGroup(self,self.tr("Name"),self.maxTextWidth)
-        self.tags = LineEidtGroup(self,"Tags",self.maxTextWidth)
+        self.leg_name = LineEidtGroup(self,self.tr("Name"),self.maxTextWidth)
+        self.leg_tags = LineEidtGroup(self,"Tags",self.maxTextWidth)
         
-        self.widgetType = ComboxGroup(self,self.tr("Type"),self.maxTextWidth)
+        self.combox_type = ComboxGroup(self,self.tr("Type"),self.maxTextWidth)
 
         self.widgetCategorys = QWidget(self)
         self.widgetCategorysLayout = QHBoxLayout(self.widgetCategorys)
@@ -228,7 +218,7 @@ class ImportSettings(QWidget):
 
         self.lodWidget = QWidget(self.scrollWidget)
         self.lodWidgetLayout = QVBoxLayout(self.lodWidget)
-        self.button_addlod = PushButton("添加lod模型",self.scrollWidget)
+        self.button_addlod = PushButton("add lod Mesh",self.scrollWidget)
         
         self.group_previewImage = DirectiorySelectGroup(self,self.tr("Preview Image"),self.maxTextWidth,filter="all files(*)",rootPath=self.rootPath)
         self.button_importAsset = PushButton("Import",self)
@@ -236,11 +226,15 @@ class ImportSettings(QWidget):
         self.__initWidget()
         self.__initConnection()
     def __initWidget(self):
+        self.rootLayout.addWidget(self.scrollArea)
         self.rootLayout.setContentsMargins(0,0,0,0)
         
-        self.rootLayout.addWidget(self.scrollArea)
+
+
+
         self.scrollArea.setWidget(self.scrollWidget)
         self.scrollArea.setWidgetResizable(True)
+        self.scrollArea.setContentsMargins(0,0,0,0)
         self.scrollArea.setObjectName("ImportSettingsScrollArea")
 
 
@@ -250,13 +244,17 @@ class ImportSettings(QWidget):
 
 
         self.scrollWidgetLayout.addWidget(self.label_nameTga)
-        self.scrollWidgetLayout.addWidget(self.name)
-        self.scrollWidgetLayout.addWidget(self.tags)
+        self.scrollWidgetLayout.addWidget(self.leg_name)
+        self.scrollWidgetLayout.addWidget(self.leg_tags)
+
         self.scrollWidgetLayout.addWidget(QLine.HLine(self))
-        self.scrollWidgetLayout.addWidget(self.widgetType)
+
+        self.scrollWidgetLayout.addWidget(self.combox_type)
         self.scrollWidgetLayout.addWidget(self.widgetCategorys)
         self.scrollWidgetLayout.addWidget(self.widgetSize)
+
         self.scrollWidgetLayout.addWidget(QLine.HLine(self))
+
         self.scrollWidgetLayout.addWidget(self.group_texAlbedo)
         self.scrollWidgetLayout.addWidget(self.group_texAO)
         self.scrollWidgetLayout.addWidget(self.group_texbrush)
@@ -273,24 +271,23 @@ class ImportSettings(QWidget):
         self.scrollWidgetLayout.addWidget(self.group_texRoughness)
         self.scrollWidgetLayout.addWidget(self.group_texSpecular)
         self.scrollWidgetLayout.addWidget(self.group_texTranslucency)
+
         self.scrollWidgetLayout.addWidget(QLine.HLine(self))
-        self.scrollWidgetLayout.setContentsMargins(30,40,30,40)
 
         self.scrollWidgetLayout.addWidget(self.OriginMesh)
         self.scrollWidgetLayout.addWidget(self.lodWidget)
         self.scrollWidgetLayout.addWidget(self.button_addlod)
+
         self.scrollWidgetLayout.addWidget(QLine.HLine(self))
+
         self.scrollWidgetLayout.addWidget(self.group_previewImage)
         self.scrollWidgetLayout.addWidget(self.button_importAsset)
-
-
+        self.scrollWidgetLayout.setContentsMargins(30,40,30,40)
 
         self.button_addlod.clicked.connect(self.addLod)
-
         self.lodWidgetLayout.setContentsMargins(0,0,0,0)
-
-        self.widgetType.addItems([self.tr(item.value) for item in list(AssetType.__members__.values())])
-        self.widgetType.combox.currentIndexChanged.connect(self.refreshWidget)
+        self.combox_type.addItems([self.tr(item.value) for item in list(AssetType.__members__.values())])
+        self.combox_type.combox.currentIndexChanged.connect(self.refreshWidget)
 
 
         self.widgetCategorysLayout.addWidget(self.combox_category)
@@ -322,11 +319,11 @@ class ImportSettings(QWidget):
         widgets = [self.combox_SurfaceSize,self.checkbox_TilesVertically,self.checkobx_TillesHorizontically,self.lodWidget,self.OriginMesh,self.button_addlod]
         for w in widgets:
             w.setHidden(False)
-        if self.widgetType.combox.currentText() == AssetType.Assets3D.value:
+        if self.combox_type.combox.currentText() == AssetType.Assets3D.value:
             self.combox_SurfaceSize.setHidden(True)
             self.checkbox_TilesVertically.setHidden(True)
             self.checkobx_TillesHorizontically.setHidden(True)
-        elif self.widgetType.combox.currentText() == AssetType.Surface.value:
+        elif self.combox_type.combox.currentText() == AssetType.Surface.value:
             self.OriginMesh.setHidden(True)
             self.lodWidget.setHidden(True)
             self.button_addlod.setHidden(True)
@@ -337,9 +334,9 @@ class ImportSettings(QWidget):
     def __initConnection(self):
         self.button_importAsset.clicked.connect(self.importAsset)
     def importAsset(self):
-        name = self.name.lineEdit.text()
-        tags = self.tags.lineEdit.text()
-        type = self.widgetType.combox.currentText()
+        name = self.leg_name.lineEdit.text()
+        tags = self.leg_tags.lineEdit.text()
+        type = self.combox_type.combox.currentText()
         albedo = self.group_texAlbedo.lineEdit.text()
         ao = self.group_texAO.lineEdit.text()
         brush = self.group_texbrush.lineEdit.text()
@@ -390,14 +387,28 @@ class ImportSettings(QWidget):
         )
         asset = MakeAssetByData(assetData)
         CopyAndRenameAsset(asset)
-        self.onImported.emit(self.button)
+        self.onImported.emit(self.index)
         
-
+class TabBar(QTabBar):
+    def __init__(self,parent=None):
+        super().__init__(parent)
+        self.setTabsClosable(True)
+class TabWidget(QTabWidget):
+    def __init__(self,parent=None):
+        super().__init__(parent)
+        self.backgroundColor = QColor(39,39,39,255)
+        self.tabBar().setHidden(True)
+    def paintEvent(self, a0: QPaintEvent | None) -> None:
+        painter = QPainter(self)
+        painter.begin(self)
+        painter.fillRect(0,0,painter.device().width(),painter.device().height(),self.backgroundColor)
+        painter.end()
+    def tabClose(self,index:int):
+        self.removeTab(index)
 
 class ImportInterface(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-
 
         self.rootLayout = QHBoxLayout(self)
         self.ImportItemButtonWidget = QWidget(self)
@@ -408,25 +419,25 @@ class ImportInterface(QWidget):
         self.addNewAssetWidgetLayout = QHBoxLayout(self.addNewAssetWidget)
         self.addNewAssetLabel = QLabel(self.addNewAssetWidget,text=self.tr("ASSETS"))
         self.addNewAssetButton = PushButton(parent=self.addNewAssetWidget)
-        self.switchWidget = QTabWidget(self)
+        self.switchWidget = TabWidget(self)
 
-        self.items:dict= {}
-
-        self.currentButton:ImportItemButton = None
+        self.itemButtons:list[TabBarButton]= []
+        self.currentItemIndex:int = -1
 
         self.__initWidget()
         self.__initConnection()
         self.__setQss()
-        self.setObjectName("import_interface")
     def __initWidget(self):
+        self.setObjectName("import_interface")
         self.rootLayout.addWidget(self.ImportItemButtonWidget)
         self.rootLayout.addWidget(self.switchWidget)
         self.rootLayout.setContentsMargins(0,0,0,0)
+        self.rootLayout.setSpacing(0)
 
         self.ImportItemButtonWidget.setFixedWidth(200)
-        self.switchWidget.setAutoFillBackground(True)
-        self.switchWidget.tabBar().setHidden(True)
-        self.switchWidget.setObjectName("ImportInterfaceSwicthWidget")
+
+        
+
 
 
         self.ImportItemButtonWidgetLayout.addWidget(self.addNewAssetWidget)
@@ -454,24 +465,31 @@ class ImportInterface(QWidget):
     def __initConnection(self):
         self.addNewAssetButton.clicked.connect(self.addItem)
     def addItem(self)->None:
+        # 通过对话框选取目录,如果路径为空,则跳过
         folder = QFileDialog.getExistingDirectory(self,"选择资产目录")
         if folder == "":
             return
+        # 按照文件类型获取目录下的文件
         files = ClassifyFilesFormFolder(folder)
+
+        # 获取资产名称
         assetName = files["assetName"]
 
-        button = ImportItemButton(self.ImportItemButtonWidget,assetName)
+
+        button = TabBarButton(self.ImportItemButtonWidget,assetName,len(self.itemButtons))
         button.delete_clicked.connect(self.removeItem)
         button.clicked.connect(self.setCurrentItem)
-        importSettings = ImportSettings(self.switchWidget,folder)
-        importSettings.name.lineEdit.textChanged.connect(button.setText)
-        importSettings.name.lineEdit.setText(assetName)
+        self.itemButtons.append(button)
+
+        importSettings = ImportSettings(self.switchWidget,self.switchWidget.count(),folder)
+        importSettings.leg_name.lineEdit.textChanged.connect(button.setText)
+        importSettings.leg_name.lineEdit.setText(assetName)
         importSettings.button = button
         importSettings.onImported.connect(self.removeItem)
-        self.items[button] = importSettings
+
         self.itemButtonListWidgetLayout.addWidget(button)
         self.switchWidget.addTab(importSettings,assetName)
-        self.setCurrentItem(button)
+        self.setCurrentItem(button.index)
 
         for image in files["images"]:
             if "albedo" in image.lower():
@@ -507,9 +525,8 @@ class ImportInterface(QWidget):
             elif ".jpg" in image.lower():
                 importSettings.group_previewImage.lineEdit.setText(image)
                 importSettings.group_previewImage.checkbox.setChecked(True)
-
         if files["models"] == []:
-            importSettings.widgetType.combox.setCurrentText(AssetType.Surface.value)
+            importSettings.combox_type.combox.setCurrentText(AssetType.Surface.value)
         lodIndexs = {}
         for meshUri in files["models"]:
             if ".fbx" in meshUri.lower() and "lod" not in meshUri.lower():
@@ -525,34 +542,29 @@ class ImportInterface(QWidget):
             importSettings.lods[int(l)].lineEdit.setText(lodIndexs[l])
             importSettings.lods[int(l)].checkbox.setChecked(True)
         importSettings.refreshWidget()
-    def removeItem(self,button:ImportItemButton):
-        importSettings = self.items[button]
-
-        self.switchWidget.tabCloseRequested
-        for i in range(self.switchWidget.count()):
-            if self.switchWidget.widget(i) == importSettings:
-                self.switchWidget.removeTab(i)
+    def removeItem(self,index:int):
+        button = self.itemButtons[index]
+        button.close()
         self.itemButtonListWidgetLayout.removeWidget(button)
-        self.items.pop(button)
-        button.destroy(True,True)
-        if button == self.currentButton:
-            if len(self.items) != 0:
-                self.setCurrentItem(list(self.items.keys())[0])
-            else:
-                self.setCurrentItem(None)
-    def setCurrentItem(self,button:ImportItemButton):
+
+        self.itemButtons.pop(index)
         
-        if self.currentButton:
-            self.currentButton.setSelected(False)
-        if button:
-            button.setSelected(True)
-            importSettings = self.items[button]
-            
-            self.switchWidget.setCurrentWidget(importSettings)
-        self.currentButton = button
+        for i in range(len(self.itemButtons)):
+            self.itemButtons[i].index = i
+        self.switchWidget.removeTab(index)
+
+        if self.currentItemIndex == index:
+            self.setCurrentItem(index-1)
+
+    def setCurrentItem(self,index:int):
+        if self.currentItemIndex > -1 and self.currentItemIndex < len(self.itemButtons):
+            self.itemButtons[self.currentItemIndex].setSelected(False)
+        if index > -1:
+            self.itemButtons[index].setSelected(True)
+            self.switchWidget.setCurrentIndex(index)
+        self.currentItemIndex = index
     def __setQss(self):
         StyleSheet.IMPORT_INTERFACE.apply(self)
-
 
 
 

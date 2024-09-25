@@ -1,8 +1,9 @@
 
 # coding: utf-8
-from qfluentwidgets import NavigationItemPosition,FluentWindow,toggleTheme,NavigationItemPosition
+from qfluentwidgets import NavigationItemPosition,FluentWindow,toggleTheme,NavigationItemPosition,FluentTranslator
 from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import QTranslator,QLocale
 
 import sys
 
@@ -16,7 +17,6 @@ from ui.import_interface import ImportInterface
 class MainWindow(FluentWindow):
     def __init__(self):
         super().__init__()
-
         self.homeInterface = HomeInterface(self)
         self.SettingInterface = SettingInterface(self)
         self.importInterface = ImportInterface(self)
@@ -33,21 +33,28 @@ class MainWindow(FluentWindow):
     def __initNavigationInterface(self):
         pass
     def __initWindow(self):
-        self.resize(1200,800)
         self.setWindowTitle("MyBridge")
         desktop = QApplication.desktop().availableGeometry()
         w, h = desktop.width(), desktop.height()
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
+  
 
-
+def startApp():
+    app = QApplication(sys.argv)
+    toggleTheme()
+    window = MainWindow()
+    window.show()
+    window.resize(1200,800)
+    sys.exit(app.exec_())
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    toggleTheme()
-    window = ImportInterface()
-    window.show()
-    window.resize(800,600)
-    app.exec()
+    # from core.utility import sendCodeToUE
+    # from core.config import Config
+    # print(sendCodeToUE( 'print("Hello World")',(Config.Get().sockeAddress,Config.Get().socketSendPort)))
+    startApp()
+    pass
+
+
 
 

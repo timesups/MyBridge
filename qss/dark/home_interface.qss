@@ -36,3 +36,19 @@ ItemHeader{
 #InfoPanelTitleWidget{
     background-color: rgb(55, 55, 55);
 }
+
+#titleLabel{
+    color: rgb(255, 255, 255);
+    font: 30px 'Segoe UI', 'PingFang SC';
+    font-weight: bold;
+}
+#typeLabel{
+    color: rgb(128, 128, 128);
+    font: 15px 'Segoe UI', 'PingFang SC';
+    font-weight: bold;
+}
+
+SmoothScrollArea{
+    border: 0px solid rgb(39, 39, 39);
+    background-color: transparent;
+}
