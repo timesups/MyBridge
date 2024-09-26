@@ -17,7 +17,7 @@ import os
 
 from core.Log import log
 from core.style_sheet import StyleSheet
-from core.qtUtility import scaleMap
+from core.qtUtility import scalePixelMap,scaleMap
 import core.utility as ut
 from core.config import Config
 
@@ -32,8 +32,7 @@ class ItemCard(QFrame):
     def __init__(self,parent,index:int,imagePath:str,name:str,size:int=250):
         super().__init__(parent=parent)
         self.setFixedSize(size,size)
-        self.item_image_uri = imagePath
-        self.item_image = None
+        self.item_pixel_map = QPixmap(imagePath)
         self.item_name = name
         self.__textPaddingX = 5
         self.__textPaddingY = 5
@@ -68,17 +67,13 @@ class ItemCard(QFrame):
         self.clicked.emit(self.index)
     def paintEvent(self, e: QPaintEvent | None) -> None:
         painter = QPainter(self)
-        painter.begin(self)
         brush = QBrush()
-        brush.setTexture(self.item_image)
+        brush.setTexture(scalePixelMap(self.width()-2*self.imageMargin,self.height()-2*self.imageMargin,self.item_pixel_map))
         rect  = QRect(self.imageMargin,self.imageMargin,painter.device().width()-2*self.imageMargin,painter.device().height()-2*self.imageMargin)
         painter.fillRect(rect,brush)
         if self.isHove:
             painter.drawText(0+self.__textPaddingX,self.height()-self.__textPaddingY,self.item_name)
         painter.end()
-    def resizeEvent(self, a0: QResizeEvent | None) -> None:
-        self.item_image = scaleMap(self.width()-2*self.imageMargin,self.height()-2*self.imageMargin,self.item_image_uri)
-        return super().resizeEvent(a0)
 
 class InfoPanelImagePreivew(QFrame):
     def __init__(self,parent):
@@ -94,7 +89,6 @@ class InfoPanelImagePreivew(QFrame):
         self.__reloadImage()
     def paintEvent(self, e: QPaintEvent | None) -> None:
         painter = QPainter(self)
-        painter.begin(self)
         painter.fillRect(0,0,self.width(),self.height(),self.backGroundColor)
         brush = QBrush()
         brush.setTexture(self.backGroundImage)
@@ -207,6 +201,13 @@ class ItemHeader(QFrame):
         self.comboxWidgetLayout.addWidget(self.combox3)
         self.comboxWidgetLayout.setContentsMargins(0,0,0,0)
 
+class FlowWidget(QWidget):
+    clicked = pyqtSignal()
+    def __init__(self,parent=None):
+        super().__init__(parent=parent)
+    def mouseReleaseEvent(self, a0: QMouseEvent | None) -> None:
+        self.clicked.emit()
+
 class ItemCardView(QWidget):
     def __init__(self,parent=None):
         super().__init__(parent=parent)
@@ -226,15 +227,13 @@ class ItemCardView(QWidget):
         self.scrollArea = SmoothScrollArea(self.view)
         self.infoPanel = InfoPanel(self)
 
-        self.flowWidget = QWidget(self.scrollArea)
+        self.flowWidget = FlowWidget(self.scrollArea)
         self.flowLayout = FlowLayout(self.flowWidget,False,True)
 
         # methods
         self.__initWidget()
+        
         self.loadItems()
-
-    def mouseReleaseEvent(self, a0: QMouseEvent | None) -> None:
-        self.setSelectedItem(-1)
     def __initWidget(self):
         self.view.setObjectName("ItemView")
         self.rootLayout.addWidget(self.view)
@@ -255,6 +254,7 @@ class ItemCardView(QWidget):
 
 
         self.flowWidget.setObjectName("flowwidget")
+        self.flowWidget.clicked.connect(lambda: self.setSelectedItem(-1))
 
         self.infoPanel.onExportClicked.connect(self.exportToUnreal)
 
@@ -266,40 +266,47 @@ class ItemCardView(QWidget):
 
         # 默认关闭信息面板
         self.infoPanel.close()
-    def showAllCards(self):
-        self.flowLayout.removeAllWidgets()
-        for card in self.cards:
-            self.flowLayout.addWidget(card)
     def setPerCardSize(self,size):
         for card in self.cards:
             card.setSize(size)
-    def addItemCard(self,imagepath:str,name:str):
-        itemCard = ItemCard(self,len(self.cards),imagepath,name)
-        itemCard.clicked.connect(self.setSelectedItem)
-        itemCard.goToFile.connect(self.goToFile)
-        self.cards.append(itemCard)
     def setSelectedItem(self,index:int):
         #清除当前选择的项目
-        self.cards[self.currentSelectedIndex].setSelected(False)
+        if len(self.cards) > 0:
+            self.cards[self.currentSelectedIndex].setSelected(False)
         self.infoPanel.close()
         #如果输入的索引大于0,表示选中了有效的项目,否则说明只是清空项目
         if index >=0:
-            asset = self.assets[index]
+            libraryAssetData = self.libraryAssetDatas[index]
             self.cards[index].setSelected(True)
-            self.infoPanel.setPanelInfo(asset.previewFile[0],asset.name,asset.type.value)
+            self.infoPanel.setPanelInfo(libraryAssetData["previewFile"],libraryAssetData["name"],libraryAssetData["type"])
             self.infoPanel.show()
         self.currentSelectedIndex = index
+    def clearAllCards(self):
+        self.flowLayout.removeAllWidgets()
+        for card in self.cards:
+            card.close()
+            del card
+        self.cards = []
     def loadItems(self):
-        self.assets = [ut.Asset.from_dict(asset) for asset in Config.Get().getAllAssets()]
-        for asset in self.assets:
-            self.addItemCard(asset.previewFile[0],asset.name)
-        self.showAllCards()
+        self.libraryAssetDatas = Config.Get().getAllAssets()
+        for libraryAssetData in self.libraryAssetDatas:
+            self.addItemCard(libraryAssetData["previewFile"],libraryAssetData["name"])
+    def reloadItems(self):
+        self.clearAllCards()
+        self.loadItems()
+    def addItemCard(self,imagepath:str,name:str):
+        index = len(self.cards)
+        itemCard = ItemCard(self,index,imagepath,name)
+        itemCard.clicked.connect(self.setSelectedItem)
+        itemCard.goToFile.connect(self.goToFile)
+        self.cards.append(itemCard)
+        self.flowLayout.addWidget(self.cards[index])
     def goToFile(self,index:int):
-        asset = self.assets[index]
-        os.startfile(asset.rootFolder)
+        libraryAssetData = self.libraryAssetDatas[index]
+        os.startfile(libraryAssetData["rootFolder"])
     def exportToUnreal(self):
-        ut.sendAssetToUE(self.assets[self.currentSelectedIndex],Config.Get().getSendSocketAddress())
-    def resizeEvent(self, a0: QResizeEvent | None) -> None:
+        ut.sendAssetToUE(self.libraryAssetDatas[self.currentSelectedIndex],Config.Get().getSendSocketAddress())
+    def resizeItemCards(self):
         itemsPerRow = 3
         width = self.flowWidget.width()-2 * self.flowLayoutSideMargins
         if width <= self.initPerItemCardSize:
@@ -312,6 +319,9 @@ class ItemCardView(QWidget):
             itemsPerRow = 5
         cardSize = round(width/itemsPerRow - 2 * self.perItemSpacing )
         self.setPerCardSize(cardSize)
+    def paintEvent(self, a0: QPaintEvent | None) -> None:
+        self.resizeItemCards()
+        return super().paintEvent(a0)
 
 class HomeInterface(QWidget):
     def __init__(self,parent=None):

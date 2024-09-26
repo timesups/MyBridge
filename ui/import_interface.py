@@ -2,7 +2,7 @@
 from qfluentwidgets import (NavigationItemPosition,FluentWindow,SubtitleLabel,setFont,SplitFluentWindow,setTheme,
                             Theme,FlowLayout,PushButton,SmoothScrollArea,applyThemeColor,SearchLineEdit,
                             ComboBox,NavigationTreeWidget,toggleTheme,NavigationItemPosition,
-                            TitleLabel,CheckBox,LineEdit,LineEditButton)
+                            TitleLabel,CheckBox,LineEdit,LineEditButton,IndeterminateProgressRing)
 from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
                              QFrame,QHBoxLayout,QVBoxLayout,
@@ -11,8 +11,8 @@ from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
 from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QImage,QPixmap,QColor, 
                          QResizeEvent,QPalette)
-from PyQt5.QtCore import QSize,pyqtSignal
-from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve
+from PyQt5.QtCore import QObject, QSize,pyqtSignal
+from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,QThread
 
 
 from core.common_widget import QLine
@@ -143,9 +143,9 @@ class TabBarButton(QWidget):
         if not self.isSelected:
             return
         painter = QPainter(self)
-        painter.begin(self)
         rect = QRect(0,0,self.selectedFlageWidth,self.height())
         painter.fillRect(rect,QColor(139,194,74,255))
+        painter.end()
     def setSelected(self,isSelected:bool,force=False):
         if isSelected == self.isSelected and not force:
             return
@@ -160,7 +160,8 @@ class TabBarButton(QWidget):
         self.label.setText(text)
 
 class ImportSettings(QWidget):
-    onImported = pyqtSignal(int)
+    startImported = pyqtSignal()
+    endImported = pyqtSignal(int)
     def __init__(self, parent,index:int,rootpath:str = "."):
         super().__init__(parent)
         self.index = index
@@ -334,6 +335,7 @@ class ImportSettings(QWidget):
     def __initConnection(self):
         self.button_importAsset.clicked.connect(self.importAsset)
     def importAsset(self):
+        self.startImported.emit()
         name = self.leg_name.lineEdit.text()
         tags = self.leg_tags.lineEdit.text()
         type = self.combox_type.combox.currentText()
@@ -387,8 +389,7 @@ class ImportSettings(QWidget):
         )
         asset = MakeAssetByData(assetData)
         CopyAndRenameAsset(asset)
-        self.onImported.emit(self.index)
-        
+        self.endImported.emit(self.index)
 class TabBar(QTabBar):
     def __init__(self,parent=None):
         super().__init__(parent)
@@ -399,10 +400,10 @@ class TabWidget(QTabWidget):
         self.backgroundColor = QColor(39,39,39,255)
         self.tabBar().setHidden(True)
     def paintEvent(self, a0: QPaintEvent | None) -> None:
-        painter = QPainter(self)
-        painter.begin(self)
-        painter.fillRect(0,0,painter.device().width(),painter.device().height(),self.backgroundColor)
-        painter.end()
+        # painter = QPainter(self)
+        # painter.fillRect(0,0,painter.device().width(),painter.device().height(),self.backgroundColor)
+        # painter.end()
+        pass
     def tabClose(self,index:int):
         self.removeTab(index)
 
@@ -462,6 +463,11 @@ class ImportInterface(QWidget):
 
         self.addNewAssetButton.setFixedSize(23,23)
 
+
+        self.prograssRing = IndeterminateProgressRing(self)
+        self.prograssRing.setVisible(False)
+
+
     def __initConnection(self):
         self.addNewAssetButton.clicked.connect(self.addItem)
     def addItem(self)->None:
@@ -485,7 +491,8 @@ class ImportInterface(QWidget):
         importSettings.leg_name.lineEdit.textChanged.connect(button.setText)
         importSettings.leg_name.lineEdit.setText(assetName)
         importSettings.button = button
-        importSettings.onImported.connect(self.removeItem)
+        importSettings.endImported.connect(self.endImport)
+        importSettings.startImported.connect(self.startImport)
 
         self.itemButtonListWidgetLayout.addWidget(button)
         self.switchWidget.addTab(importSettings,assetName)
@@ -555,7 +562,6 @@ class ImportInterface(QWidget):
 
         if self.currentItemIndex == index:
             self.setCurrentItem(index-1)
-
     def setCurrentItem(self,index:int):
         if self.currentItemIndex > -1 and self.currentItemIndex < len(self.itemButtons):
             self.itemButtons[self.currentItemIndex].setSelected(False)
@@ -563,6 +569,16 @@ class ImportInterface(QWidget):
             self.itemButtons[index].setSelected(True)
             self.switchWidget.setCurrentIndex(index)
         self.currentItemIndex = index
+    def startImport(self):
+        self.prograssRing.setVisible(True)
+        self.prograssRing.move(int(self.width()/2),int(self.height()/2))
+        self.setEnabled(False)
+        pass
+    def endImport(self,index:int):
+        self.removeItem(index)
+        self.prograssRing.setVisible(False)
+        self.setEnabled(True)
+        pass
     def __setQss(self):
         StyleSheet.IMPORT_INTERFACE.apply(self)
 

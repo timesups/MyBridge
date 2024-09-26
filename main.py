@@ -21,15 +21,14 @@ class MainWindow(FluentWindow):
         self.SettingInterface = SettingInterface(self)
         self.importInterface = ImportInterface(self)
         self.setMinimumSize(1200,400)
-
         self.__initWindow()
         self.__addSubInterface()
         self.__initNavigationInterface()
     def __addSubInterface(self):
-        self.addSubInterface(self.homeInterface,FIF.HOME,"HOME")
-        self.addSubInterface(self.importInterface,FIF.DOWNLOAD,"Import")
-        self.addSubInterface(self.SettingInterface,FIF.SETTING,"SETTING",NavigationItemPosition.BOTTOM)
-        pass
+        nvaigration = self.addSubInterface(self.homeInterface,FIF.HOME,"HOME")
+        nvaigration.clicked.connect(self.homeInterface.item_card_view.reloadItems)
+        nvaigration = self.addSubInterface(self.importInterface,FIF.DOWNLOAD,"Import")
+        nvaigration = self.addSubInterface(self.SettingInterface,FIF.SETTING,"SETTING",NavigationItemPosition.BOTTOM)
     def __initNavigationInterface(self):
         pass
     def __initWindow(self):
@@ -37,7 +36,6 @@ class MainWindow(FluentWindow):
         desktop = QApplication.desktop().availableGeometry()
         w, h = desktop.width(), desktop.height()
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
-  
 
 def startApp():
     app = QApplication(sys.argv)

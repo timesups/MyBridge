@@ -179,7 +179,6 @@ class AssetCategory(MyBridgetGlobalEnum):
     Traditional         =      "Traditional"
 
 
-
 class AssetSubccategory(MyBridgetGlobalEnum):
     Floating = "Floating"
     Shore    = "Shore"
@@ -287,37 +286,36 @@ class LOD(SerializeBase):
             self.normalMap.subMapCount = 1
             self.normalMap.UDIM = False
 @dataclass(repr=False)
-class UnrealAsset(SerializeBase):
-    Meshuri      : str               = field(default_factory=str)
-    ARMSUri      : str               = field(default_factory=str)
-    BaseColorUri : str               = field(default_factory=str)
-    NormalUri    : str               = field(default_factory=str)
-    EmissiveUri  : str               = field(default_factory=str)
+class Material(SerializeBase):
+    name         : str               = field(default_factory=str)
+    maps         : list[AssetMap]    = field(default_factory=list[AssetMap])
 @dataclass(repr=False)
 class Asset(SerializeBase):
-    name         : str               = field(default_factory=str)
-    ZbrushFile   : str               = field(default_factory=str)
-    AssetID      : str               = field(default_factory=str)
-    rootFolder   : str               = field(default_factory=str)
-    JsonUri      : str               = field(default_factory=str)
+    name           : str               = field(default_factory=str)
+    ZbrushFile     : str               = field(default_factory=str)
+    AssetID        : str               = field(default_factory=str)
+    rootFolder     : str               = field(default_factory=str)
+    JsonUri        : str               = field(default_factory=str)
 
-    tags         : list[str]         = field(default_factory=list[str])
-    previewFile  : list[str]         = field(default_factory=list[str])
-    Lods         : list[LOD]         = field(default_factory=list[LOD])
-    maps         : list[AssetMap]    = field(default_factory=list[AssetMap])
+    tags           : list[str]         = field(default_factory=list[str])
+    previewFile    : list[str]         = field(default_factory=list[str])
+    Lods           : list[LOD]         = field(default_factory=list[LOD])
+    assetMaterials : list[Material]    = field(default_factory=list[Material])
 
-    type         : AssetType         = field(default=AssetType.Assets3D)
-    category     : AssetCategory     = field(default=AssetCategory.Building)
-    subcategory  : AssetSubccategory = field(default=AssetSubccategory.Floating)
-    surfaceSize  : AssetSize        = field(default=AssetSize.Meter1)
-    OriginMesh   : AssetMesh         = field(default_factory=AssetMesh)
+    type           : AssetType         = field(default=AssetType.Assets3D)
+    category       : AssetCategory     = field(default=AssetCategory.Building)
+    subcategory    : AssetSubccategory = field(default=AssetSubccategory.Floating)
+    surfaceSize    : AssetSize        = field(default=AssetSize.Meter1)
+    assetFormat    : AssetFormat       = field(default=AssetFormat.FBX)
 
-    TilesV       : bool              = field(default_factory=bool)
-    TilesH       : bool              = field(default_factory=bool)
+    OriginMesh     : AssetMesh         = field(default_factory=AssetMesh)
 
-    AssetIndex   : int               = field(default_factory=int)
-    assetFormat  : AssetFormat       = field(default=AssetFormat.FBX)
-    unrealAsset  : UnrealAsset       = field(default=UnrealAsset())
+
+    TilesV         : bool              = field(default_factory=bool)
+    TilesH         : bool              = field(default_factory=bool)
+
+    AssetIndex     : int               = field(default_factory=int)
+
 TextureExtensions = [".png",'.exr','.jpg']
 def ClassifyFilesFormFolder(folder:str):
     models = []
@@ -357,7 +355,10 @@ def MakeAssetByData(datas:dict)->Asset:
         assetMap.uri = mapPath
         assetMap.subMapCount = 1
         assetMap.UDIM = False
-        asset.maps.append(assetMap)
+        material = Material()
+        material.maps.append(assetMap)
+        material.name = asset.name
+    asset.assetMaterials.append(material)
     if asset.type == AssetType.Assets3D:
         asset.OriginMesh = AssetMesh()
         asset.OriginMesh.uri = datas["orginMesh"]
@@ -378,6 +379,7 @@ def MakeAssetByData(datas:dict)->Asset:
     else:
         pass
     asset.previewFile.append(datas["previewImage"])
+    asset.assetFormat = AssetFormat.FBX
     return asset
 
 def generate_random_string(length=10):
@@ -397,6 +399,13 @@ def CopyFileToFolder(filePath:str,folder:str,newName:str = None):
         newFileName = newName
     newFilePath = os.path.join(folder,newFileName)
     shutil.copyfile(filePath,newFilePath)
+    return newFilePath
+def MoveFileToFolder(filePath:str,folder:str,newName:str = None):
+    newFileName = os.path.basename(filePath)
+    if newName:
+        newFileName = newName
+    newFilePath = os.path.join(folder,newFileName)
+    shutil.move(filePath,newFilePath)
     return newFilePath
 def scaleImage(imagePath:str):
     baseName = os.path.basename(imagePath)
@@ -433,16 +442,30 @@ def CopyAndRenameAsset(asset:Asset):
         asset.ZbrushFile = CopyFileToFolder(asset.ZbrushFile,asset.rootFolder,f"{asset.AssetID}.ZTL")
     else:
         pass
-    
-    for i in range(len(asset.maps)):
-        asset.maps[i].name = f"{asset.AssetID}_{asset.maps[i].type.value}{asset.maps[i].extension}"
-        asset.maps[i].uri = CopyFileToFolder(asset.maps[i].uri,asset.rootFolder,asset.maps[i].name)
+    for i in range(len(asset.assetMaterials[0].maps)):
+        asset.assetMaterials[0].maps[i].name = f"{asset.AssetID}_{asset.assetMaterials[0].maps[i].type.value}{asset.assetMaterials[0].maps[i].extension}"
+        asset.assetMaterials[0].maps[i].uri = CopyFileToFolder(asset.assetMaterials[0].maps[i].uri,asset.rootFolder,asset.assetMaterials[0].maps[i].name)
     for i in range(len(asset.previewFile)):
         asset.previewFile[i] = scaleImage(asset.previewFile[i])
-        asset.previewFile[i] = CopyFileToFolder(asset.previewFile[i],asset.rootFolder,f"{asset.AssetID}_Preview_{i}.jpg")
+        asset.previewFile[i] = MoveFileToFolder(asset.previewFile[i],asset.rootFolder,f"{asset.AssetID}_Preview_{i}.jpg")
     with open(asset.JsonUri,'w+',encoding='utf-8') as f:
         f.write(json.dumps(asset.to_dict()))
-    Config.Get().addAssetToDB(asset.to_dict())
+    assetToLibraryData = dict( 
+        name        = asset.name,
+        AssetID     = asset.AssetID,
+        jsonUri     = asset.JsonUri,
+        TilesH      = asset.TilesH,
+        Tilesv      = asset.TilesV,
+        asset       = asset.assetFormat.value,
+        category    = asset.category.value,
+        subcategory = asset.subcategory.value,
+        surfaceSize = asset.surfaceSize.value,
+        tags        = asset.tags,
+        type        = asset.type.value,
+        previewFile = asset.previewFile[0],
+        rootFolder  = asset.rootFolder
+        )
+    Config.Get().addAssetToDB(assetToLibraryData)
 
 
 def sendStringToUE(string:str,address:tuple[str,int]):
@@ -460,7 +483,9 @@ def copyMapToFolder(map:AssetMap,folder:str)->AssetMap:
     shutil.copy(map.uri,newUri)
     map.uri = newUri
     return map
-def sendAssetToUE(asset:Asset,address:tuple[str,int]):
+def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int]):
+    with open(libraryAssetData["jsonUri"],'r',encoding="utf-8") as f:
+            asset = Asset.from_dict(json.loads(f.read()))
     if asset.assetFormat == AssetFormat.FBX:
         meshUri = asset.OriginMesh.uri
         Ao = None
@@ -468,7 +493,7 @@ def sendAssetToUE(asset:Asset,address:tuple[str,int]):
         BaseColor = None
         Normal = None
         Metallic = None
-        for map in asset.maps:
+        for map in asset.assetMaterials[0].maps:
             if map.type== AssetMapType.Albedo:
                 BaseColor = copyMapToFolder(copy.deepcopy(map),Config.Get().localTempFolder)
             elif map.type == AssetMapType.AO:
@@ -483,10 +508,8 @@ def sendAssetToUE(asset:Asset,address:tuple[str,int]):
                 pass
         if Ao or Roughness or BaseColor or Normal or Metallic:
             return
-        
     elif asset.assetFormat == AssetFormat.UnrealEngine:
         pass
-
     message = dict(
         assetType = asset.type,
     )
