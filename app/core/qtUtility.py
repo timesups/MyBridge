@@ -24,7 +24,7 @@ def scaleMap(width:int,height:int,mapPath:str)-> QPixmap:
 
     painter = QPainter(scaled_pixmap)
 
-    scaled_factor = min(width / original_pixelmap.width(), height / original_pixelmap.height())
+    scaled_factor = min(width / original_pixelmap.width()+0.000001, height / original_pixelmap.height()+0.00001)
 
     scaled_size = original_pixelmap.size() * scaled_factor
 
@@ -44,7 +44,7 @@ def scalePixelMap(width:int,height:int,original_pixelmap:QPixmap)-> QPixmap:
 
     painter = QPainter(scaled_pixmap)
 
-    scaled_factor = min(width / original_pixelmap.width(), height / original_pixelmap.height())
+    scaled_factor = min(width / original_pixelmap.width()+0.0001, height / original_pixelmap.height()+0.0001)
 
     scaled_size = original_pixelmap.size() * scaled_factor
 

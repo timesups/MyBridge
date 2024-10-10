@@ -15,9 +15,11 @@ from PyQt5.QtCore import QObject, QSize,pyqtSignal
 from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,QThread
 
 
-from core.common_widget import QLine
-from core.utility import AssetCategory,AssetSize,AssetSubccategory,AssetType,ClassifyFilesFormFolder,MakeAssetByData,CopyAndRenameAsset
-from core.style_sheet import StyleSheet
+from app.core.common_widget import QLine
+from app.core.utility import AssetCategory,AssetSize,AssetSubccategory,AssetType,ClassifyFilesFormFolder,MakeAssetByData,CopyAndRenameAsset
+from app.core.style_sheet import StyleSheet
+from app.core.translator import Translator
+from app.core.config import Config
 
 
 class SelectFileLineEdit(LineEdit):
@@ -29,7 +31,7 @@ class SelectFileLineEdit(LineEdit):
         self.hBoxLayout.addWidget(self.openBrowserButton, 0, Qt.AlignRight)
         self.setClearButtonEnabled(True)
         self.setTextMargins(0, 0, 59, 0)
-        self.title = "选择一个文件"
+        self.title = "select a file"
         self.filter = "All Files(*)"
         self.rootPath = "."
         self.__initConnection()
@@ -159,7 +161,7 @@ class TabBarButton(QWidget):
     def setText(self,text:str):
         self.label.setText(text)
 
-class ImportSettings(QWidget):
+class ImportSettings(QWidget,Translator):
     startImported = pyqtSignal()
     endImported = pyqtSignal(int)
     def __init__(self, parent,index:int,rootpath:str = "."):
@@ -178,50 +180,50 @@ class ImportSettings(QWidget):
         self.scrollWidgetLayout = QVBoxLayout(self.scrollWidget)
 
 
-        self.label_nameTga = TitleLabel(self.tr("Import Settings"),self)
-        self.leg_name = LineEidtGroup(self,self.tr("Name"),self.maxTextWidth)
-        self.leg_tags = LineEidtGroup(self,"Tags",self.maxTextWidth)
+        self.label_nameTga = TitleLabel(self.tra("Import Settings"),self)
+        self.leg_name = LineEidtGroup(self,self.tra("Name"),self.maxTextWidth)
+        self.leg_tags = LineEidtGroup(self,self.tra("Tags"),self.maxTextWidth)
         
-        self.combox_type = ComboxGroup(self,self.tr("Type"),self.maxTextWidth)
+        self.combox_type = ComboxGroup(self,self.tra("Type"),self.maxTextWidth)
 
         self.widgetCategorys = QWidget(self)
         self.widgetCategorysLayout = QHBoxLayout(self.widgetCategorys)
 
-        self.combox_category = ComboxGroup(self.widgetCategorys,self.tr("Category"),self.maxTextWidth)
-        self.combox_subcategory = ComboxGroup(self.widgetCategorys,self.tr("Subcategory"),self.maxTextWidth)
+        self.combox_category = ComboxGroup(self.widgetCategorys,self.tra("Category"),self.maxTextWidth)
+        self.combox_subcategory = ComboxGroup(self.widgetCategorys,self.tra("Subcategory"),self.maxTextWidth)
 
         self.widgetSize = QWidget(self)
         self.widgetSizeLayout = QHBoxLayout(self.widgetSize)
 
         
-        self.combox_SurfaceSize = ComboxGroup(self.widgetSize,self.tr("Surface Size"),self.maxTextWidth)
-        self.checkbox_TilesVertically = CheckBox(self.tr("Tiles Vertically"),self.widgetSize)
-        self.checkobx_TillesHorizontically = CheckBox(self.tr("Tiles Horizontically"),self.widgetSize)
+        self.combox_SurfaceSize = ComboxGroup(self.widgetSize,self.tra("Surface Size"),self.maxTextWidth)
+        self.checkbox_TilesVertically = CheckBox(self.tra("Tiles Vertically"),self.widgetSize)
+        self.checkobx_TillesHorizontically = CheckBox(self.tra("Tiles Horizontically"),self.widgetSize)
 
-        self.group_texAlbedo = DirectiorySelectGroup(self,self.tr("Albedo"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texbrush = DirectiorySelectGroup(self,self.tr("Brush"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texAO = DirectiorySelectGroup(self,self.tr("AO"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texBump = DirectiorySelectGroup(self,self.tr("Bump"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texCavity= DirectiorySelectGroup(self,self.tr("Cavity"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texDiffuse = DirectiorySelectGroup(self,self.tr("Diffuse"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texDisplacement = DirectiorySelectGroup(self,self.tr("Displacement"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texFuzz = DirectiorySelectGroup(self,self.tr("Fuzz"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texGloss = DirectiorySelectGroup(self,self.tr("Gloss"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texMask = DirectiorySelectGroup(self,self.tr("Mask"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texMetalness = DirectiorySelectGroup(self,self.tr("Metalness"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texNormal = DirectiorySelectGroup(self,self.tr("Normal"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texOpacity = DirectiorySelectGroup(self,self.tr("Opacity"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texRoughness = DirectiorySelectGroup(self,self.tr("Roughness"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texSpecular = DirectiorySelectGroup(self,self.tr("Specular"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
-        self.group_texTranslucency = DirectiorySelectGroup(self,self.tr("Translucency"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texAlbedo = DirectiorySelectGroup(self,self.tra("Albedo"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texbrush = DirectiorySelectGroup(self,self.tra("Brush"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texAO = DirectiorySelectGroup(self,self.tra("AO"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texBump = DirectiorySelectGroup(self,self.tra("Bump"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texCavity= DirectiorySelectGroup(self,self.tra("Cavity"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texDiffuse = DirectiorySelectGroup(self,self.tra("Diffuse"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texDisplacement = DirectiorySelectGroup(self,self.tra("Displacement"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texFuzz = DirectiorySelectGroup(self,self.tra("Fuzz"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texGloss = DirectiorySelectGroup(self,self.tra("Gloss"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texMask = DirectiorySelectGroup(self,self.tra("Mask"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texMetalness = DirectiorySelectGroup(self,self.tra("Metalness"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texNormal = DirectiorySelectGroup(self,self.tra("Normal"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texOpacity = DirectiorySelectGroup(self,self.tra("Opacity"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texRoughness = DirectiorySelectGroup(self,self.tra("Roughness"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texSpecular = DirectiorySelectGroup(self,self.tra("Specular"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
+        self.group_texTranslucency = DirectiorySelectGroup(self,self.tra("Translucency"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
 
-        self.OriginMesh =  DirectiorySelectGroup(self,self.tr(f"Mesh"),self.maxTextWidth,title="选择一个模型",filter="fbx file(*.fbx)",rootPath=self.rootPath)
+        self.OriginMesh =  DirectiorySelectGroup(self,self.tra(f"Mesh"),self.maxTextWidth,title="选择一个模型",filter="fbx file(*.fbx)",rootPath=self.rootPath)
 
         self.lodWidget = QWidget(self.scrollWidget)
         self.lodWidgetLayout = QVBoxLayout(self.lodWidget)
         self.button_addlod = PushButton("add lod Mesh",self.scrollWidget)
         
-        self.group_previewImage = DirectiorySelectGroup(self,self.tr("Preview Image"),self.maxTextWidth,filter="all files(*)",rootPath=self.rootPath)
+        self.group_previewImage = DirectiorySelectGroup(self,self.tra("Preview Image"),self.maxTextWidth,filter="all files(*)",rootPath=self.rootPath)
         self.button_importAsset = PushButton("Import",self)
         
         self.__initWidget()
@@ -287,7 +289,7 @@ class ImportSettings(QWidget):
 
         self.button_addlod.clicked.connect(self.addLod)
         self.lodWidgetLayout.setContentsMargins(0,0,0,0)
-        self.combox_type.addItems([self.tr(item.value) for item in list(AssetType.__members__.values())])
+        self.combox_type.addItems([self.tra(item.value) for item in list(AssetType.__members__.values())])
         self.combox_type.combox.currentIndexChanged.connect(self.refreshWidget)
 
 
@@ -295,8 +297,8 @@ class ImportSettings(QWidget):
         self.widgetCategorysLayout.addWidget(self.combox_subcategory)
         self.widgetCategorysLayout.setContentsMargins(0,0,0,0)
 
-        self.combox_category.addItems([self.tr(item.value) for item in list(AssetCategory.__members__.values())])
-        self.combox_subcategory.addItems([self.tr(item.value) for item in list(AssetSubccategory.__members__.values())])
+        self.combox_category.addItems([self.tra(item.value) for item in list(AssetCategory.__members__.values())])
+        self.combox_subcategory.addItems([self.tra(item.value) for item in list(AssetSubccategory.__members__.values())])
        
 
         self.widgetSizeLayout.addWidget(self.combox_SurfaceSize)
@@ -308,12 +310,12 @@ class ImportSettings(QWidget):
         self.checkobx_TillesHorizontically.setFixedWidth(200)
 
 
-        self.combox_SurfaceSize.addItems([self.tr(item.value) for item in list(AssetSize.__members__.values())])
+        self.combox_SurfaceSize.addItems([self.tra(item.value) for item in list(AssetSize.__members__.values())])
         self.addLod()
         self.refreshWidget()
     def addLod(self):
         index = len(self.lods)
-        group = DirectiorySelectGroup(self,self.tr(f"LOD {index}"),self.maxTextWidth,title="选择一个模型",filter="fbx file(*.fbx)",rootPath=self.rootPath)
+        group = DirectiorySelectGroup(self,self.tra(f"LOD {index}"),self.maxTextWidth,title="选择一个模型",filter="fbx file(*.fbx)",rootPath=self.rootPath)
         self.lodWidgetLayout.addWidget(group)
         self.lods.append(group)
     def refreshWidget(self):
@@ -388,7 +390,24 @@ class ImportSettings(QWidget):
             previewImage = previewImage
         )
         asset = MakeAssetByData(assetData)
-        CopyAndRenameAsset(asset)
+
+        #将资产添加到资产数据库中
+        assetToLibraryData = dict( 
+            name        = asset.name,
+            AssetID     = asset.AssetID,
+            jsonUri     = asset.JsonUri,
+            TilesH      = asset.TilesH,
+            Tilesv      = asset.TilesV,
+            asset       = asset.assetFormat.value,
+            category    = asset.category.value,
+            subcategory = asset.subcategory.value,
+            surfaceSize = asset.surfaceSize.value,
+            tags        = asset.tags,
+            type        = asset.type.value,
+            previewFile = asset.previewFile[0],
+            rootFolder  = asset.rootFolder
+            )
+        Config.Get().addAssetToDB(assetToLibraryData)
         self.endImported.emit(self.index)
 class TabBar(QTabBar):
     def __init__(self,parent=None):
@@ -407,7 +426,7 @@ class TabWidget(QTabWidget):
     def tabClose(self,index:int):
         self.removeTab(index)
 
-class ImportInterface(QWidget):
+class ImportInterface(QWidget,Translator):
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -418,7 +437,7 @@ class ImportInterface(QWidget):
         self.itemButtonListWidgetLayout = QVBoxLayout(self.itemButtonListWidget)
         self.addNewAssetWidget = QWidget(self.ImportItemButtonWidget)
         self.addNewAssetWidgetLayout = QHBoxLayout(self.addNewAssetWidget)
-        self.addNewAssetLabel = QLabel(self.addNewAssetWidget,text=self.tr("ASSETS"))
+        self.addNewAssetLabel = QLabel(self.addNewAssetWidget,text=self.tra("ASSETS"))
         self.addNewAssetButton = PushButton(parent=self.addNewAssetWidget)
         self.switchWidget = TabWidget(self)
 
@@ -553,13 +572,13 @@ class ImportInterface(QWidget):
         button = self.itemButtons[index]
         button.close()
         self.itemButtonListWidgetLayout.removeWidget(button)
-
         self.itemButtons.pop(index)
-        
-        for i in range(len(self.itemButtons)):
-            self.itemButtons[i].index = i
+
         self.switchWidget.removeTab(index)
 
+        for i in range(len(self.itemButtons)):
+            self.itemButtons[i].index = i
+            self.switchWidget.widget(i).index = i
         if self.currentItemIndex == index:
             self.setCurrentItem(index-1)
     def setCurrentItem(self,index:int):

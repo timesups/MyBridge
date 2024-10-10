@@ -11,7 +11,7 @@ from PIL import Image
 import socket
 
 
-from core.config import Config
+from app.core.config import Config
 
 
 
@@ -22,7 +22,10 @@ from core.config import Config
 class MyBridgetGlobalEnum(Enum):
     def __format__(self, format_spec: str) -> str:
         return super().__format__(format_spec)
-    pass
+class TextureSize(MyBridgetGlobalEnum):
+    _2k = "2K"
+    _4k = "4K"
+    _8K = "8K"
 class AssetType(MyBridgetGlobalEnum):
     Assets3D = "3D Assets"
     Surface = "Surface"
@@ -30,80 +33,6 @@ class AssetType(MyBridgetGlobalEnum):
 class Format(MyBridgetGlobalEnum):
     FBX = "Fbx"
     Unreal = "Unreal"
-
-tranlator = dict(
-    Building        = "建筑",
-    Food            = "食物",
-    Historical      = "历史的",
-    Industrial      = "工业的",
-    Interior        = "室内的",
-    Nature          = "自然得",
-    Props           = "道具",
-    Street          = "街道",
-    Aquatic         = "水生植物",
-    Climber         = "攀爬物",
-    Crop            = "农作物",
-    Fern            = "蕨类植物",
-    Flowering_Plant = "有花的植物",
-    Garden_Plant    = "花园植物",
-    Grass           = "草",
-    Ground_Cover    = "地衣",
-    Herb            = "草本植物",
-    Houseplant      = "室内盆栽植物",
-    Shrub           = "灌木",
-    Succulent       = "多肉植物",
-    Weed            = "杂草",
-    Asphalt         = "沥青",
-    Bark            = "树皮",
-    Branch          = "树枝",
-    Brick           = "砖块",
-    Coal            = "煤",
-    Concrete        = "水泥/混凝土",
-    Debris          = "碎块",
-    Fabric          = "纤维",
-    Gravel          = "沙砾",
-    Ground          = "地面",
-    Marble          = "大理石",
-    Metal           = "金属",
-    Moss            = "苔藓",
-    Plaster         = "灰泥",
-    Rock            = "岩石",
-    Roofing         = "屋顶",
-    Sand            = "沙子",
-    Snow            = "雪",
-    Soil            = "土壤",
-    Stone           = "石头",
-    Tile            = "瓷砖",
-    Wood            = "木材",
-    Other           = "其他",
-    Blood           = "血",
-    Commercial      = "商业的",
-    Door            = "门",
-    Graffiti        = "涂鸦",
-    Leakage         = "泄露",
-    Mud             = "泥土",
-    Tree            = "树",
-    Trim            = "修剪",
-    Vegetation      = "植被",
-    Fresh_Water     = "淡水",
-    Ocean           = "海洋",
-    Plant           = "植物",
-    Vine            = "藤蔓",
-    Damage          = "破坏",
-    Dirt            = "脏污",
-    Fingerprint     = "指纹",
-    Frost           = "森林",
-    Grain           = "谷物",
-    Grunge          = "垃圾",
-    Rubber          = "橡胶",
-    Stain           = "污渍",
-    Wipe_Mark       = "擦拭痕迹",
-    Imprint         = "印记",
-    Scorch_Mark     = "烧焦痕迹",
-    Spatter         = "溅",
-    Sponge          = "海绵",
-    Traditional     = "传统的",
-)
        
 class AssetCategory(MyBridgetGlobalEnum):
     Building            =      "Building"
@@ -180,9 +109,203 @@ class AssetCategory(MyBridgetGlobalEnum):
 
 
 class AssetSubccategory(MyBridgetGlobalEnum):
+    Balcony = "Balcony"
+    Beam    = "Beam"
+    Combined = "Combined"
+    Door = "Door"
+    Pillar = "Pillar"
+    Railing = "Railing"
+    Relief = "Relief"
+    Roof = "Roof"
+    Roof_Tile = "Roof_Tile"
+    Stair = "Stair"
+    Trim = "Trim"
+    Wall = "Wall"
+    Window = "Window"
+    Baked_Goods = "Baked_Goods"
+    Fruit = "Fruit"
+    Meat = "Meat"
+    Mushroom = "Mushroom"
+    Nut = "Nut"
+    Vegetable = "Vegetable"
+    Cambodian_Ruins = "Cambodian_Ruins"
+    Feudal_Japan = "Feudal_Japan"
+    Medieval = "Medieval"
+    Roman_Empire = "Roman_Empire"
+    Wild_West = "Wild_West"
+    Construction = "Construction"
+    Hardware = "Hardware"
+    Mining = "Mining"
+    Railway = "Railway"
+    Storage = "Storage"
+    Ceiling = "Ceiling"
+    Decoration = "Decoration"
+    Fireplace = "Fireplace"
+    Furniture = "Furniture"
+    Bone = "Bone"
+    Debris = "Debris"
+    Embankment = "Embankment"
+    Rock = "Rock"
+    Seabed = "Seabed"
+    Snow = "Snow"
+    Tree = "Tree"
+    Books = "Books"
+    Farm = "Farm"
+    Firewood = "Firewood"
+    Military = "Military"
+    Palisade = "Palisade"
+    Recreational = "Recreational"
+    Trash = "Trash"
+    Weaponry = "Weaponry"
+    Wheel = "Wheel"
+    Wood = "Wood"
+    Barrier = "Barrier"
+    Bollard = "Bollard"
+    Curb = "Curb"
+    Highway = "Highway"
+    Props = "Props"
+    Sidewalk = "Sidewalk"
+    Traffic_Cone = "Traffic_Cone"
     Floating = "Floating"
-    Shore    = "Shore"
+    Shore = "Shore"
     Submerged = "Submerged"
+    Grass = "Grass"
+    Plant = "Plant"
+    Flowerhead = "Flowerhead"
+    Infloresence = "Infloresence"
+    Bush = "Bush"
+    Flowering = "Flowering"
+    Flowerless = "Flowerless"
+    Lawn = "Lawn"
+    Wild = "Wild"
+    Forest = "Forest"
+    Meadow = "Meadow"
+    Sandy = "Sandy"
+    Urban = "Urban"
+    Fine = "Fine"
+    Rough = "Rough"
+    Torn = "Torn"
+    Beech = "Beech"
+    Birch = "Birch"
+    Oak = "Oak"
+    Other = "Other"
+    Plam = "Plam"
+    Pine = "Pine"
+    Spruce = "Spruce"
+    Willow = "Willow"
+    Alder = "Alder"
+    Juniper = "Juniper"
+    Modern = "Modern"
+    Mortar = "Mortar"
+    Painted = "Painted"
+    Brick = "Brick"
+    Cast_in_Situ = "Cast_in_Situ"
+    Damaged = "Damaged"
+    Dirty = "Dirty"
+    Slab = "Slab"
+    Smooth = "Smooth"
+    Nature = "Nature"
+    Carpet = "Carpet"
+    Leather = "Leather"
+    Pattern = "Pattern"
+    Plain = "Plain"
+    Tarp = "Tarp"
+    Artificial = "Artificial"
+    Dried = "Dried"
+    Patchy = "Patchy"
+    Natural = "Natural"
+    Pebbledash = "Pebbledash"
+    Jungle = "Jungle"
+    Roots = "Roots"
+    Asian = "Asian"
+    Middle_Eastern = "Middle_Eastern"
+    Roman = "Roman"
+    Polished = "Polished"
+    Tile = "Tile"
+    Bare = "Bare"
+    Corroded = "Corroded"
+    Corrugated = "Corrugated"
+    Gun = "Gun"
+    Sheet = "Sheet"
+    Treated = "Treated"
+    Ground = "Ground"
+    Fresh = "Fresh"
+    Old = "Old"
+    Cliff = "Cliff"
+    Jagged = "Jagged"
+    Lava = "Lava"
+    Mossy = "Mossy"
+    New = "New"
+    Beach = "Beach"
+    Desert = "Desert"
+    Mixed = "Mixed"
+    Pure = "Pure"
+    Clay = "Clay"
+    Mud = "Mud"
+    Mulch = "Mulch"
+    Castle = "Castle"
+    Cobblestone = "Cobblestone"
+    Floor = "Floor"
+    Granite = "Granite"
+    Limestone = "Limestone"
+    Mosaic = "Mosaic"
+    Pebble = "Pebble"
+    Terrazzo = "Terrazzo"
+    Ceramic = "Ceramic"
+    Grout = "Grout"
+    Pavestone = "Pavestone"
+    Stone = "Stone"
+    Board = "Board"
+    Log = "Log"
+    Parquet = "Parquet"
+    Plank = "Plank"
+    Veneer = "Veneer"
+    Climber = "Climber"
+    Creature = "Creature"
+    Dirt_Road = "Dirt_Road"
+    Edible = "Edible"
+    Fur = "Fur"
+    Paper = "Paper"
+    Various = "Various"
+    Spatter = "Spatter"
+    Stain = "Stain"
+    Poster = "Poster"
+    Sticker = "Sticker"
+    Crack = "Crack"
+    Damage = "Damage"
+    Patch = "Patch"
+    Ash = "Ash"
+    Burnt = "Burnt"
+    Dirt = "Dirt"
+    Metal = "Metal"
+    Rag = "Rag"
+    Rug = "Rug"
+    Stamp = "Stamp"
+    Tileable = "Tileable"
+    Manhole_Cover = "Manhole_Cover"
+    Scrap = "Scrap"
+    Welding_Seam = "Welding_Seam"
+    Spanish = "Spanish"
+    Antique = "Antique"
+    Painted_line = "Painted_line"
+    Porhole = "Porhole"
+    Bark = "Bark"
+    Branch = "Branch"
+    Flower = "Flower"
+    Hay = "Hay"
+    Leaf = "Leaf"
+    Twig = "Twig"
+    Vine = "Vine"
+    Weed = "Weed"
+    Belt = "Belt"
+    Table_Mat = "Table_Mat"
+    Stem = "Stem"
+    Needle = "Needle"
+    Assorted_Plant = "Assorted_Plant"
+    Painting = "Painting"
+    Clean = "Clean"
+    Scratched     = "Scratched"
+
 
 class AssetSize(MyBridgetGlobalEnum):
     Meter1 = "1 Meter"
@@ -260,6 +383,7 @@ class AssetMap(SerializeBase):
     type        : AssetMapType = field(default=AssetMapType.Albedo)
     subMapCount : int          = field(default_factory=int) 
     UDIM        : bool         = field(default_factory=bool)
+    size        : TextureSize  = field(default=TextureSize._2k)
 @dataclass(repr=False)
 class AssetMesh(SerializeBase):
     uri         : str          = field(default_factory=str)
@@ -338,12 +462,22 @@ def ClassifyFilesFormFolder(folder:str):
         if ext == ".jpg":
             assetName = basename
     return dict(assetName = assetName,images = images,models=models)
-
+def GetTextureSize(uri:str):
+    image = Image.open(uri)
+    size = image.size
+    maxSize = max(size[0],size[1])
+    if maxSize >= 8192:
+        return TextureSize._8K
+    elif maxSize >= 4096:
+        return TextureSize._4k
+    else:
+        return TextureSize._2k
 def MakeAssetByData(datas:dict)->Asset:
     asset = Asset()
     asset.name = datas["name"]
     asset.tags = [tag for tag in datas["tags"].split(",")]
     asset.type = copy.deepcopy(AssetType._value2member_map_[datas["type"]])
+    material = Material()
     for mapType in datas["mapData"].keys():
         mapPath = datas["mapData"][mapType]
         # 跳过不存在的贴图
@@ -355,7 +489,7 @@ def MakeAssetByData(datas:dict)->Asset:
         assetMap.uri = mapPath
         assetMap.subMapCount = 1
         assetMap.UDIM = False
-        material = Material()
+        assetMap.size = GetTextureSize(assetMap.uri)
         material.maps.append(assetMap)
         material.name = asset.name
     asset.assetMaterials.append(material)
@@ -380,6 +514,39 @@ def MakeAssetByData(datas:dict)->Asset:
         pass
     asset.previewFile.append(datas["previewImage"])
     asset.assetFormat = AssetFormat.FBX
+    return CopyAndRenameAsset(asset)
+
+def CopyAndRenameAsset(asset:Asset):
+    # 计算资产ID
+    asset.AssetID = generate_unique_string(7)
+    # 创建资产根目录
+    asset.rootFolder = os.path.join(Config.Get().remoteAssetLibrary,f"{asset.name}_{asset.AssetID}")
+    if not os.path.exists(asset.rootFolder):
+        os.makedirs(asset.rootFolder)
+    # 获取资产编号
+    asset.AssetIndex = Config.Get().getCurrentAssetCount()
+
+    asset.JsonUri = os.path.join(asset.rootFolder,f"{asset.AssetID}.json")
+
+    if asset.type == AssetType.Assets3D:
+        for i in range(len(asset.Lods)):
+            asset.Lods[i].mesh.name = f"{asset.AssetID}_LOD{asset.Lods[i].level}{asset.Lods[i].mesh.extension}"
+            asset.Lods[i].mesh.uri = CopyFileToFolder(asset.Lods[i].mesh.uri,asset.rootFolder,asset.Lods[i].mesh.name)
+            asset.Lods[i].normalMap.name = f"{asset.AssetID}_Normal_LOD{asset.Lods[i].level}{asset.Lods[i].normalMap.extension}"
+            asset.Lods[i].normalMap.uri = CopyFileToFolder(asset.Lods[i].normalMap.uri,asset.rootFolder,asset.Lods[i].normalMap.name)
+        asset.OriginMesh.name = asset.AssetID + asset.OriginMesh.extension
+        asset.OriginMesh.uri = CopyFileToFolder(asset.OriginMesh.uri,asset.rootFolder,asset.OriginMesh.name)
+        asset.ZbrushFile = CopyFileToFolder(asset.ZbrushFile,asset.rootFolder,f"{asset.AssetID}.ZTL")
+    else:
+        pass
+    for i in range(len(asset.assetMaterials[0].maps)):
+        asset.assetMaterials[0].maps[i].name = f"{asset.AssetID}_{asset.assetMaterials[0].maps[i].type.value}{asset.assetMaterials[0].maps[i].extension}"
+        asset.assetMaterials[0].maps[i].uri = CopyFileToFolder(asset.assetMaterials[0].maps[i].uri,asset.rootFolder,asset.assetMaterials[0].maps[i].name)
+    for i in range(len(asset.previewFile)):
+        asset.previewFile[i] = scaleImage(asset.previewFile[i])
+        asset.previewFile[i] = MoveFileToFolder(asset.previewFile[i],asset.rootFolder,f"{asset.AssetID}_Preview_{i}.jpg")
+    with open(asset.JsonUri,'w+',encoding='utf-8') as f:
+        f.write(json.dumps(asset.to_dict()))
     return asset
 
 def generate_random_string(length=10):
@@ -419,53 +586,7 @@ def scaleImage(imagePath:str):
     image.save(newpath)
     return newpath
 
-def CopyAndRenameAsset(asset:Asset):
-    # 计算资产ID
-    asset.AssetID = generate_unique_string(7)
-    # 创建资产根目录
-    asset.rootFolder = os.path.join(Config.Get().remoteAssetLibrary,f"{asset.name}_{asset.AssetID}")
-    if not os.path.exists(asset.rootFolder):
-        os.makedirs(asset.rootFolder)
-    # 获取资产编号
-    asset.AssetIndex = Config.Get().getCurrentAssetCount()
 
-    asset.JsonUri = os.path.join(asset.rootFolder,f"{asset.AssetID}.json")
-
-    if asset.type == AssetType.Assets3D:
-        for i in range(len(asset.Lods)):
-            asset.Lods[i].mesh.name = f"{asset.AssetID}_LOD{asset.Lods[i].level}{asset.Lods[i].mesh.extension}"
-            asset.Lods[i].mesh.uri = CopyFileToFolder(asset.Lods[i].mesh.uri,asset.rootFolder,asset.Lods[i].mesh.name)
-            asset.Lods[i].normalMap.name = f"{asset.AssetID}_Normal_LOD{asset.Lods[i].level}{asset.Lods[i].normalMap.extension}"
-            asset.Lods[i].normalMap.uri = CopyFileToFolder(asset.Lods[i].normalMap.uri,asset.rootFolder,asset.Lods[i].normalMap.name)
-        asset.OriginMesh.name = asset.AssetID + asset.OriginMesh.extension
-        asset.OriginMesh.uri = CopyFileToFolder(asset.OriginMesh.uri,asset.rootFolder,asset.OriginMesh.name)
-        asset.ZbrushFile = CopyFileToFolder(asset.ZbrushFile,asset.rootFolder,f"{asset.AssetID}.ZTL")
-    else:
-        pass
-    for i in range(len(asset.assetMaterials[0].maps)):
-        asset.assetMaterials[0].maps[i].name = f"{asset.AssetID}_{asset.assetMaterials[0].maps[i].type.value}{asset.assetMaterials[0].maps[i].extension}"
-        asset.assetMaterials[0].maps[i].uri = CopyFileToFolder(asset.assetMaterials[0].maps[i].uri,asset.rootFolder,asset.assetMaterials[0].maps[i].name)
-    for i in range(len(asset.previewFile)):
-        asset.previewFile[i] = scaleImage(asset.previewFile[i])
-        asset.previewFile[i] = MoveFileToFolder(asset.previewFile[i],asset.rootFolder,f"{asset.AssetID}_Preview_{i}.jpg")
-    with open(asset.JsonUri,'w+',encoding='utf-8') as f:
-        f.write(json.dumps(asset.to_dict()))
-    assetToLibraryData = dict( 
-        name        = asset.name,
-        AssetID     = asset.AssetID,
-        jsonUri     = asset.JsonUri,
-        TilesH      = asset.TilesH,
-        Tilesv      = asset.TilesV,
-        asset       = asset.assetFormat.value,
-        category    = asset.category.value,
-        subcategory = asset.subcategory.value,
-        surfaceSize = asset.surfaceSize.value,
-        tags        = asset.tags,
-        type        = asset.type.value,
-        previewFile = asset.previewFile[0],
-        rootFolder  = asset.rootFolder
-        )
-    Config.Get().addAssetToDB(assetToLibraryData)
 
 
 def sendStringToUE(string:str,address:tuple[str,int]):
@@ -483,38 +604,86 @@ def copyMapToFolder(map:AssetMap,folder:str)->AssetMap:
     shutil.copy(map.uri,newUri)
     map.uri = newUri
     return map
-def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int]):
+
+def GenARMMap(ao:str,roughness:str,metallic:str,assetID:str,extension:str)->str:
+    dirName = os.path.dirname(ao)
+    armUri = os.path.join(dirName,f"{assetID}_ARM{extension}")
+    if os.path.exists(armUri):
+        return armUri
+    aoImage = Image.open(ao).convert("L")
+    rouImage = Image.open(roughness).convert("L")
+    metaImage = Image.open(metallic).convert("L")
+    assert aoImage.size == rouImage.size == metaImage.size
+    r,g,b = aoImage.split()[0],rouImage.split()[0],metaImage.split()[0]
+    armImage = Image.merge("RGB",(r,g,b))
+    armImage.save(armUri)
+    return armUri
+def ResizeTextureByString(uri:str,rootDir:str,size:str):
+    if not os.path.exists(rootDir):
+        os.makedirs(rootDir)
+    fileName = os.path.basename(uri)
+    newFileuri = os.path.join(rootDir,fileName)
+    if os.path.exists(newFileuri):
+        return newFileuri
+    if size == "2K":
+        image = Image.open(uri)
+        image = image.resize((2048,2048))
+        image.save(newFileuri)
+        return newFileuri
+    elif size == "4K":
+        image = Image.open(uri)
+        image = image.resize((4096,4096))
+        image.save(newFileuri)
+        return newFileuri
+    return uri
+def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int):
     with open(libraryAssetData["jsonUri"],'r',encoding="utf-8") as f:
             asset = Asset.from_dict(json.loads(f.read()))
     if asset.assetFormat == AssetFormat.FBX:
+        size = list(TextureSize.__members__.values())[sizeIndex].value
         meshUri = asset.OriginMesh.uri
         Ao = None
         Roughness = None
         BaseColor = None
         Normal = None
         Metallic = None
+        extension = ".png"
         for map in asset.assetMaterials[0].maps:
+            mapUri = map.uri
+            if map.size.value != size:
+                mapUri = ResizeTextureByString(mapUri,os.path.join(asset.rootFolder,f"Thumbs/{size}"),size)
             if map.type== AssetMapType.Albedo:
-                BaseColor = copyMapToFolder(copy.deepcopy(map),Config.Get().localTempFolder)
+                BaseColor = mapUri
+                extension = map.extension
             elif map.type == AssetMapType.AO:
-                Ao = copyMapToFolder(copy.deepcopy(map),Config.Get().localTempFolder)
+                Ao = mapUri
             elif map.type == AssetMapType.Metalness:
-                Metallic = copyMapToFolder(copy.deepcopy(map),Config.Get().localTempFolder)
+                Metallic = mapUri
             elif map.type == AssetMapType.Normal:
-                Normal = copyMapToFolder(copy.deepcopy(map),Config.Get().localTempFolder)
+                Normal = mapUri
             elif map.type == AssetMapType.Roughness:
-                Roughness = copyMapToFolder(copy.deepcopy(map),Config.Get().localTempFolder)
+                Roughness = mapUri
             else:
                 pass
-        if Ao or Roughness or BaseColor or Normal or Metallic:
+        if not (Ao and Roughness and BaseColor and Normal and Metallic):
             return
+        armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,extension)
     elif asset.assetFormat == AssetFormat.UnrealEngine:
         pass
     message = dict(
-        assetType = asset.type,
+        name = asset.name,
+        AssetID = asset.AssetID,
+        assetFormat = asset.assetFormat.value,
+        assetType = asset.type.value,
+        baseColor = BaseColor,
+        normal = Normal,
+        arm = armUri,
+        mesh = meshUri
     )
-    #sendStringToUE(json.dumps(message),address)
-
+    if sendStringToUE(json.dumps(message),address):
+        return True
+    else:
+        return False
 if __name__ == "__main__":
     print(ClassifyFilesFormFolder("d:\Desktop\Temp\Bmwl_1"))
 

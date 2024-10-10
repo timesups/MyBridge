@@ -2,7 +2,7 @@ from qfluentwidgets import (NavigationItemPosition,FluentWindow,SubtitleLabel,
                             setFont,SplitFluentWindow,setTheme,
                             Theme,FlowLayout,PushButton,
                             SmoothScrollArea,applyThemeColor,SearchLineEdit,
-                            ComboBox,NavigationTreeWidget,ImageLabel,TitleLabel)
+                            ComboBox,NavigationTreeWidget,ImageLabel,TitleLabel,InfoBar,InfoBarPosition)
 from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
                              QFrame,QHBoxLayout,QVBoxLayout,
@@ -15,12 +15,12 @@ from PyQt5.QtCore import QEvent, QRect,Qt,QPoint,QEasingCurve,pyqtSignal
 
 import os
 
-from core.Log import log
-from core.style_sheet import StyleSheet
-from core.qtUtility import scalePixelMap,scaleMap
-import core.utility as ut
-from core.config import Config
-
+from app.core.Log import log
+from app.core.style_sheet import StyleSheet
+from app.core.qtUtility import scalePixelMap,scaleMap
+import app.core.utility as ut
+from app.core.config import Config
+from app.core.translator import Translator
 
 class ItemCardContextMenu(QMenu):
     def __init__(self,parent=None):
@@ -78,7 +78,7 @@ class ItemCard(QFrame):
 class InfoPanelImagePreivew(QFrame):
     def __init__(self,parent):
         super().__init__(parent=parent)
-        self.backGroundImageUri = "image\Kettle.png"
+        self.backGroundImageUri = ""
         self.backGroundImage = None
         self.backGroundColor = QColor(15,15,15,255)
         self.setFixedHeight(300)
@@ -99,7 +99,7 @@ class InfoPanelImagePreivew(QFrame):
         self.__reloadImage()
         return super().resizeEvent(a0)
 
-class InfoPanel(QFrame):
+class InfoPanel(QFrame,Translator):
     onExportClicked = pyqtSignal()
     def __init__(self,parent):
         super().__init__(parent=parent)
@@ -123,9 +123,13 @@ class InfoPanel(QFrame):
         self.exportWidget = QWidget(self)
         self.exportWidgetLayout = QHBoxLayout(self.exportWidget)
 
-        self.button_export = PushButton("Export",self.exportWidget)
+        self.button_export = PushButton(self.tra("Export"),self.exportWidget)
 
+        self.combox_res = ComboBox(parent=self.exportWidget)
+        self.combox_res.addItems([item.value for item in list(ut.TextureSize.__members__.values())])
+        self.combox_res.currentIndexChanged.connect(self.__saveConfig)
         self.__initWidget()
+        self.__loadConfig()
     def __initWidget(self):
         self.rootLayout.addWidget(self.scrollArea)
         self.rootLayout.addWidget(self.exportWidget)
@@ -140,8 +144,9 @@ class InfoPanel(QFrame):
         self.scrollWidgetLayout.setSpacing(0)
         self.scrollWidgetLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
+        self.exportWidgetLayout.addWidget(self.combox_res)
         self.exportWidgetLayout.addWidget(self.button_export)
-        self.exportWidgetLayout.setContentsMargins(0,0,0,0)
+        self.exportWidgetLayout.setContentsMargins(0,10,0,10)
 
         self.titelWidget.setObjectName("InfoPanelTitleWidget")
         self.titelWidgetLayout.addWidget(self.titleLabel)
@@ -157,9 +162,16 @@ class InfoPanel(QFrame):
         self.titleLabel.setText(name)
         self.typeLabel.setText(type)
         pass
+    def __loadConfig(self):
+        self.combox_res.setCurrentIndex(Config.Get().exportTextureSizeIndex)
+    def __saveConfig(self,index):
+        Config.Get().exportTextureSizeIndex = index
+        Config.Get().saveConfig()
 
         
 class ItemHeader(QFrame):
+    searchSignal = pyqtSignal(str)
+    clearSignal = pyqtSignal()
     def __init__(self,parent):
         super().__init__(parent=parent)
         self.rootLayout = QVBoxLayout(self)
@@ -173,21 +185,6 @@ class ItemHeader(QFrame):
         self.comboxWidget = QWidget(self.headerWidget)
         self.comboxWidgetLayout = QHBoxLayout(self.comboxWidget)
 
-        self.combox1 = ComboBox(self.comboxWidget)
-        self.combox1.addItem("Test")
-        self.combox1.addItem("Test")
-        self.combox1.addItem("Test")
-
-        self.combox2 = ComboBox(self.comboxWidget)
-        self.combox2.addItem("Test")
-        self.combox2.addItem("Test")
-        self.combox2.addItem("Test")
-
-        self.combox3 = ComboBox(self.comboxWidget)
-        self.combox3.addItem("Test")
-        self.combox3.addItem("Test")
-        self.combox3.addItem("Test")
-
         self.__initWidget()
     def __initWidget(self):
         self.rootLayout.addWidget(self.headerWidget)
@@ -196,10 +193,19 @@ class ItemHeader(QFrame):
         self.headerWidgetLayout.addWidget(self.comboxWidget)
         self.headerWidgetLayout.setContentsMargins(0,0,0,0)
 
-        self.comboxWidgetLayout.addWidget(self.combox1)
-        self.comboxWidgetLayout.addWidget(self.combox2)
-        self.comboxWidgetLayout.addWidget(self.combox3)
         self.comboxWidgetLayout.setContentsMargins(0,0,0,0)
+        self.searchBar.searchSignal.connect(self.__search)
+        self.searchBar.clearSignal.connect(self.__clear)
+    def __search(self,text:str):
+        """ emit search signal """
+        text = text.strip()
+        if text:
+            self.searchSignal.emit(text)
+        else:
+            self.clearSignal.emit()
+    def __clear(self):
+        self.clearSignal.emit()
+
 
 class FlowWidget(QWidget):
     clicked = pyqtSignal()
@@ -208,7 +214,7 @@ class FlowWidget(QWidget):
     def mouseReleaseEvent(self, a0: QMouseEvent | None) -> None:
         self.clicked.emit()
 
-class ItemCardView(QWidget):
+class ItemCardView(QWidget,Translator):
     def __init__(self,parent=None):
         super().__init__(parent=parent)
         # values
@@ -291,6 +297,19 @@ class ItemCardView(QWidget):
         self.libraryAssetDatas = Config.Get().getAllAssets()
         for libraryAssetData in self.libraryAssetDatas:
             self.addItemCard(libraryAssetData["previewFile"],libraryAssetData["name"])
+    def searchAssets(self,keyword:str):
+        self.setAllCardsHidden(False)
+        for i in range(len(self.cards)):
+            asset = self.libraryAssetDatas[i]
+            pattern = asset["name"] + asset["AssetID"] + ",".join(asset["tags"])
+            if keyword.lower() in pattern.lower():
+                continue
+            self.cards[i].setHidden(True)
+    def clearSearch(self):
+        self.setAllCardsHidden(False)
+    def setAllCardsHidden(self,hidden:bool):
+        for i in range(len(self.cards)):
+            self.cards[i].setHidden(False)
     def reloadItems(self):
         self.clearAllCards()
         self.loadItems()
@@ -305,7 +324,26 @@ class ItemCardView(QWidget):
         libraryAssetData = self.libraryAssetDatas[index]
         os.startfile(libraryAssetData["rootFolder"])
     def exportToUnreal(self):
-        ut.sendAssetToUE(self.libraryAssetDatas[self.currentSelectedIndex],Config.Get().getSendSocketAddress())
+        if ut.sendAssetToUE(self.libraryAssetDatas[self.currentSelectedIndex],Config.Get().getSendSocketAddress(),self.infoPanel.combox_res.currentIndex()):
+            InfoBar.success(
+                title=self.tra('Notice:'),
+                content=self.tra("Export successful"),
+                orient=Qt.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP,
+                duration=2000,
+                parent=self
+            )
+        else:
+            InfoBar.error(
+                title=self.tra('Error:'),
+                content=self.tra("Export failed"),
+                orient=Qt.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP,
+                duration=2000,
+                parent=self
+            )
     def resizeItemCards(self):
         itemsPerRow = 3
         width = self.flowWidget.width()-2 * self.flowLayoutSideMargins
@@ -338,7 +376,11 @@ class HomeInterface(QWidget):
         self.rootLayout.addWidget(self.item_header)
         self.rootLayout.addWidget(self.item_card_view)
         self.rootLayout.setContentsMargins(0,0,0,0)
+
+
     def __initConnection(self):
+        self.item_header.searchSignal.connect(self.item_card_view.searchAssets)
+        self.item_header.clearSignal.connect(self.item_card_view.clearSearch)
         pass
     def __setQss(self):
         StyleSheet.HOME_INTERFACE.apply(self)

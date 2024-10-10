@@ -7,28 +7,29 @@ from PyQt5.QtCore import QTranslator,QLocale
 
 import sys
 
-from core.Log import log
+from app.core.Log import log
 
-from ui.home_interface import HomeInterface
-from ui.setting_interface import SettingInterface
-from ui.import_interface import ImportInterface
+from app.ui.home_interface import HomeInterface
+from app.ui.setting_interface import SettingInterface
+from app.ui.import_interface import ImportInterface
+from app.core.translator import Translator
 
-
-class MainWindow(FluentWindow):
+class MainWindow(FluentWindow,Translator):
     def __init__(self):
         super().__init__()
         self.homeInterface = HomeInterface(self)
         self.SettingInterface = SettingInterface(self)
         self.importInterface = ImportInterface(self)
         self.setMinimumSize(1200,400)
+        self.resize(1200,800)
         self.__initWindow()
         self.__addSubInterface()
         self.__initNavigationInterface()
     def __addSubInterface(self):
-        nvaigration = self.addSubInterface(self.homeInterface,FIF.HOME,"HOME")
+        nvaigration = self.addSubInterface(self.homeInterface,FIF.HOME,self.tra("Home"))
         nvaigration.clicked.connect(self.homeInterface.item_card_view.reloadItems)
-        nvaigration = self.addSubInterface(self.importInterface,FIF.DOWNLOAD,"Import")
-        nvaigration = self.addSubInterface(self.SettingInterface,FIF.SETTING,"SETTING",NavigationItemPosition.BOTTOM)
+        nvaigration = self.addSubInterface(self.importInterface,FIF.DOWNLOAD,self.tra("Import"))
+        nvaigration = self.addSubInterface(self.SettingInterface,FIF.SETTING,self.tra("Settings"),NavigationItemPosition.BOTTOM)
     def __initNavigationInterface(self):
         pass
     def __initWindow(self):
@@ -41,8 +42,8 @@ def startApp():
     app = QApplication(sys.argv)
     toggleTheme()
     window = MainWindow()
-    window.show()
-    window.resize(1200,800)
+    window.show() 
+
     sys.exit(app.exec_())
 
 
