@@ -4,6 +4,7 @@ from qfluentwidgets import NavigationItemPosition,FluentWindow,toggleTheme,Navig
 from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QTranslator,QLocale
+from PyQt5.QtGui import QIcon
 
 import sys
 
@@ -34,6 +35,7 @@ class MainWindow(FluentWindow,Translator):
         pass
     def __initWindow(self):
         self.setWindowTitle("MyBridge")
+        self.setWindowIcon(QIcon(r"app\resource\image\icon.ico"))
         desktop = QApplication.desktop().availableGeometry()
         w, h = desktop.width(), desktop.height()
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)

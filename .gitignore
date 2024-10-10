@@ -1,2 +1,5 @@
 *.pyc
 MyBridgeWidget/
+/build
+/dist
+*.spec
