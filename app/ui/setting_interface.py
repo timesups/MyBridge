@@ -113,7 +113,7 @@ class SettingInterface(QWidget,Translator):
     def showInfoConfigSaved(self):
         InfoBar.success(
             title=self.tra('notice:'),
-            content=self.tra("current settings is saved"),
+            content=self.tra("The current Settings have been saved and will take effect after the restart"),
             orient=Qt.Horizontal,
             isClosable=True,
             position=InfoBarPosition.TOP,

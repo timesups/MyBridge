@@ -23,8 +23,12 @@ def scaleMap(width:int,height:int,mapPath:str)-> QPixmap:
 
 
     painter = QPainter(scaled_pixmap)
-
-    scaled_factor = min(width / original_pixelmap.width()+0.000001, height / original_pixelmap.height()+0.00001)
+    
+    try:
+        scaled_factor = min(width / float(original_pixelmap.width()+0.1), height / float(original_pixelmap.height()+0.1))
+    except ZeroDivisionError:
+        scaled_factor = 0.3
+        pass
 
     scaled_size = original_pixelmap.size() * scaled_factor
 

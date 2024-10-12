@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
 from PyQt5.QtGui import (QContextMenuEvent, QIcon, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QImage,QPixmap,QColor, 
                          QResizeEvent)
-from PyQt5.QtCore import QEvent, QRect,Qt,QPoint,QEasingCurve,pyqtSignal
+from PyQt5.QtCore import QEvent, QRect,Qt,QPoint,QEasingCurve,pyqtSignal,QThread
 
 import os
 
@@ -168,6 +168,7 @@ class InfoPanel(QFrame,Translator):
         Config.Get().exportTextureSizeIndex = index
         Config.Get().saveConfig()
 
+
         
 class ItemHeader(QFrame):
     searchSignal = pyqtSignal(str)
@@ -196,6 +197,7 @@ class ItemHeader(QFrame):
         self.comboxWidgetLayout.setContentsMargins(0,0,0,0)
         self.searchBar.searchSignal.connect(self.__search)
         self.searchBar.clearSignal.connect(self.__clear)
+        self.searchBar.returnPressed.connect(lambda:self.__search(self.searchBar.text()))
     def __search(self,text:str):
         """ emit search signal """
         text = text.strip()
@@ -235,6 +237,8 @@ class ItemCardView(QWidget,Translator):
 
         self.flowWidget = FlowWidget(self.scrollArea)
         self.flowLayout = FlowLayout(self.flowWidget,False,True)
+        self.LoadCardCountPerTimes = 10
+        self.currentLoadedCardCount = 0
 
         # methods
         self.__initWidget()
@@ -257,6 +261,7 @@ class ItemCardView(QWidget,Translator):
         self.scrollArea.backgroundRole()
         self.scrollArea.setViewportMargins(0,0,0,0)
         self.scrollArea.setObjectName("ItemCardViewScrollArea")
+        self.scrollArea.verticalScrollBar().valueChanged.connect(self.test)
 
 
         self.flowWidget.setObjectName("flowwidget")
@@ -272,6 +277,9 @@ class ItemCardView(QWidget,Translator):
 
         # 默认关闭信息面板
         self.infoPanel.close()
+    def test(self,value):
+        if value/self.scrollArea.verticalScrollBar().maximum() > 0.8:
+            self.loadItems()
     def setPerCardSize(self,size):
         for card in self.cards:
             card.setSize(size)
@@ -295,8 +303,12 @@ class ItemCardView(QWidget,Translator):
         self.cards = []
     def loadItems(self):
         self.libraryAssetDatas = Config.Get().getAllAssets()
-        for libraryAssetData in self.libraryAssetDatas:
-            self.addItemCard(libraryAssetData["previewFile"],libraryAssetData["name"])
+        for i in range(self.currentLoadedCardCount,self.currentLoadedCardCount+self.LoadCardCountPerTimes):
+            if i < len(self.libraryAssetDatas):
+                self.addItemCard(self.libraryAssetDatas[i]["previewFile"],self.libraryAssetDatas[i]["name"])
+            else:
+                return
+        self.currentLoadedCardCount += self.LoadCardCountPerTimes
     def searchAssets(self,keyword:str):
         self.setAllCardsHidden(False)
         for i in range(len(self.cards)):

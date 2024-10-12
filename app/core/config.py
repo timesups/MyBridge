@@ -35,10 +35,7 @@ class Config:
 
         # 创建所需要的目录
         self.__createFolders()
-        # 从服务器同步数据库
-        self.syncDataCache()
-        # 初始化数据库
-        self.__initDataBse()
+
     def saveConfig(self):
         data = dict(
             remoteAssetLibraryFolder = self.remoteAssetLibraryFolder,
@@ -60,7 +57,7 @@ class Config:
             self.exportTextureSizeIndex = data["exportTextureSizeIndex"]
         except KeyError:
             pass
-    def __initDataBse(self):
+    def __initDataBase(self):
         self.remoteDataBase = TinyDB(self.remoteDataBasepath)
         if os.path.exists(self.localDataBsePath):
             self.localDataBase = TinyDB(self.localDataBsePath)
@@ -68,12 +65,18 @@ class Config:
             self.localDataBase = None
     def getSendSocketAddress(self)->tuple[str,int]:
         return (self.sockeAddress,self.socketSendPort)
-    def syncDataCache(self):
+    def __syncDataCache(self):
         if os.path.exists(self.remoteDataBasepath):
             if not os.path.exists(self.localDataBsePath):
                 shutil.copyfile(self.remoteDataBasepath,self.localDataBsePath)
                 return
             if calculate_md5(self.localDataBsePath) != calculate_md5(self.remoteDataBasepath):
+                try:
+                    # 当前的本地资产库已经存在时需要解除占用才能从服务器正确同步数据库文件
+                    self.localDataBase.close()
+                    self.localDataBase = None
+                except:
+                    pass
                 os.remove(self.localDataBsePath)
                 shutil.copyfile(self.remoteDataBasepath,self.localDataBsePath)
                 return
@@ -86,6 +89,10 @@ class Config:
     def addAssetToDB(self,assetData:dict):
         self.remoteDataBase.insert(assetData)
     def getAllAssets(self):
+        # 从服务器同步数据库
+        self.__syncDataCache()
+        # 初始化数据库
+        self.__initDataBase()
         if self.localDataBase:
             return self.localDataBase.all()
         else:

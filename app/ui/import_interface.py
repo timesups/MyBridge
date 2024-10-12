@@ -2,7 +2,7 @@
 from qfluentwidgets import (NavigationItemPosition,FluentWindow,SubtitleLabel,setFont,SplitFluentWindow,setTheme,
                             Theme,FlowLayout,PushButton,SmoothScrollArea,applyThemeColor,SearchLineEdit,
                             ComboBox,NavigationTreeWidget,toggleTheme,NavigationItemPosition,
-                            TitleLabel,CheckBox,LineEdit,LineEditButton,IndeterminateProgressRing)
+                            TitleLabel,CheckBox,LineEdit,LineEditButton,IndeterminateProgressRing,InfoBar,InfoBarPosition)
 from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
                              QFrame,QHBoxLayout,QVBoxLayout,
@@ -161,6 +161,31 @@ class TabBarButton(QWidget):
     def setText(self,text:str):
         self.label.setText(text)
 
+class MakeAssetWorker(QThread):
+    onFinished = pyqtSignal()
+    def __init__(self, assetData,parent: QObject | None = ...) -> None:
+        super().__init__(parent)
+        self.assetdata = assetData
+    def run(self) -> None:
+        asset = MakeAssetByData(self.assetdata)
+        #将资产添加到资产数据库中
+        assetToLibraryData = dict( 
+            name        = asset.name,
+            AssetID     = asset.AssetID,
+            jsonUri     = asset.JsonUri,
+            TilesH      = asset.TilesH,
+            Tilesv      = asset.TilesV,
+            asset       = asset.assetFormat.value,
+            category    = asset.category.value,
+            subcategory = asset.subcategory.value,
+            surfaceSize = asset.surfaceSize.value,
+            tags        = asset.tags,
+            type        = asset.type.value,
+            previewFile = asset.previewFile[0],
+            rootFolder  = asset.rootFolder
+            )
+        Config.Get().addAssetToDB(assetToLibraryData)
+        self.onFinished.emit()
 class ImportSettings(QWidget,Translator):
     startImported = pyqtSignal()
     endImported = pyqtSignal(int)
@@ -389,25 +414,11 @@ class ImportSettings(QWidget,Translator):
             lods = lods,
             previewImage = previewImage
         )
-        asset = MakeAssetByData(assetData)
-
-        #将资产添加到资产数据库中
-        assetToLibraryData = dict( 
-            name        = asset.name,
-            AssetID     = asset.AssetID,
-            jsonUri     = asset.JsonUri,
-            TilesH      = asset.TilesH,
-            Tilesv      = asset.TilesV,
-            asset       = asset.assetFormat.value,
-            category    = asset.category.value,
-            subcategory = asset.subcategory.value,
-            surfaceSize = asset.surfaceSize.value,
-            tags        = asset.tags,
-            type        = asset.type.value,
-            previewFile = asset.previewFile[0],
-            rootFolder  = asset.rootFolder
-            )
-        Config.Get().addAssetToDB(assetToLibraryData)
+        makeAssetWorker = MakeAssetWorker(assetData,self)
+        makeAssetWorker.onFinished.connect(self.importFinished)
+        makeAssetWorker.start()
+        self.setEnabled(False)
+    def importFinished(self):
         self.endImported.emit(self.index)
 class TabBar(QTabBar):
     def __init__(self,parent=None):
@@ -485,7 +496,6 @@ class ImportInterface(QWidget,Translator):
 
         self.prograssRing = IndeterminateProgressRing(self)
         self.prograssRing.setVisible(False)
-
 
     def __initConnection(self):
         self.addNewAssetButton.clicked.connect(self.addItem)
@@ -580,7 +590,12 @@ class ImportInterface(QWidget,Translator):
             self.itemButtons[i].index = i
             self.switchWidget.widget(i).index = i
         if self.currentItemIndex == index:
-            self.setCurrentItem(index-1)
+            if index != 0:
+                self.setCurrentItem(index-1)
+            elif len(self.itemButtons) > 0:
+                self.setCurrentItem(0)
+            else:
+                self.setCurrentItem(-1)
     def setCurrentItem(self,index:int):
         if self.currentItemIndex > -1 and self.currentItemIndex < len(self.itemButtons):
             self.itemButtons[self.currentItemIndex].setSelected(False)
@@ -594,10 +609,19 @@ class ImportInterface(QWidget,Translator):
         self.setEnabled(False)
         pass
     def endImport(self,index:int):
+
+        InfoBar.success(
+            title=self.tra('notice:'),
+            content=f"{self.tra('Asset')} {self.itemButtons[index].label.text()} {self.tra('is imported')}",
+            orient=Qt.Horizontal,
+            isClosable=True,
+            position=InfoBarPosition.TOP,
+            duration=2000,
+            parent=self
+        )
         self.removeItem(index)
         self.prograssRing.setVisible(False)
         self.setEnabled(True)
-        pass
     def __setQss(self):
         StyleSheet.IMPORT_INTERFACE.apply(self)
 
