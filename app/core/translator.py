@@ -296,6 +296,7 @@ dictionary = {
 "The current Settings have been saved and will take effect after the restart":"当前的设置已经保存,将在重启后生效",
 "Asset":"资产",
 "is imported":"导入完成",
+"Favorite":"最爱"
 }
 class Translator:
     def tra(self,text:str):

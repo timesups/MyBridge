@@ -7,7 +7,7 @@ from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
                              QFrame,QHBoxLayout,QVBoxLayout,
                              QAction,QStyleOption,QGraphicsDropShadowEffect,QMenu,
-                             QLabel)
+                             QLabel,QSizePolicy)
 from PyQt5.QtGui import (QContextMenuEvent, QIcon, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QImage,QPixmap,QColor, 
                          QResizeEvent)
@@ -22,9 +22,19 @@ import app.core.utility as ut
 from app.core.config import Config
 from app.core.translator import Translator
 
+from app.core.icons import Icons
+
 class ItemCardContextMenu(QMenu):
     def __init__(self,parent=None):
         super().__init__(parent)
+
+class ImageScaleWorker(QThread):
+    width = 100
+    height = 100
+    imageOrigin = None
+    image = None
+    def run(self):
+        self.image = scalePixelMap(self.width,self.height,self.imageOrigin)
 
 class ItemCard(QFrame):
     clicked = pyqtSignal(int)
@@ -40,6 +50,9 @@ class ItemCard(QFrame):
         self.index = index
         self.isHove = False
         self.imageMargin = 8
+        self.worker = ImageScaleWorker(self)
+        self.isFavorite = False
+        self.heartPixmap = Icons.get().heart
     def setSize(self,size:int):
         self.resize(size,size)
         self.setFixedSize(size,size)
@@ -65,15 +78,27 @@ class ItemCard(QFrame):
         if self.isSelected:
             return
         self.clicked.emit(self.index)
+    def resizeEvent(self, a0: QResizeEvent | None) -> None:
+        if not self.worker.isRunning():
+            self.worker.imageOrigin =  self.item_pixel_map
+            self.worker.width = self.width()-2*self.imageMargin
+            self.worker.height = self.height()-2*self.imageMargin
+            self.worker.start()
+        return super().resizeEvent(a0)
     def paintEvent(self, e: QPaintEvent | None) -> None:
         painter = QPainter(self)
-        brush = QBrush()
-        brush.setTexture(scalePixelMap(self.width()-2*self.imageMargin,self.height()-2*self.imageMargin,self.item_pixel_map))
         rect  = QRect(self.imageMargin,self.imageMargin,painter.device().width()-2*self.imageMargin,painter.device().height()-2*self.imageMargin)
-        painter.fillRect(rect,brush)
+        if not self.worker.isRunning() and self.worker.image != None:
+            brush = QBrush()
+            brush.setTexture(self.worker.image)
+            painter.fillRect(rect,brush)
+        else:
+            painter.fillRect(rect,QColor(34,34,34)) 
         if self.isHove:
-            painter.drawText(0+self.__textPaddingX,self.height()-self.__textPaddingY,self.item_name)
+            painter.drawText(0+self.__textPaddingX,self.height()-self.__textPaddingY,f"{self.item_name}")
+            # painter.drawPixmap(self.width()-40,self.height()-40,self.heartPixmap)
         painter.end()
+
 
 class InfoPanelImagePreivew(QFrame):
     def __init__(self,parent):
@@ -117,8 +142,14 @@ class InfoPanel(QFrame,Translator):
         self.titelWidget = QWidget(self)
         self.titelWidgetLayout = QVBoxLayout(self.titelWidget)
 
-        self.titleLabel = QLabel(self.titelWidget,text="Test")
-        self.typeLabel = QLabel(self.titelWidget,text="Test")
+        self.titleLabel = QLabel(self.titelWidget,text="titleLabel")
+        self.typeLabel = QLabel(self.titelWidget,text="typeLabel")
+        self.categoryLabel = QLabel(self.titelWidget,text="categoryLabel")
+        self.subCategoryLabel = QLabel(self.titelWidget,text="subCategoryLabel")
+
+
+        self.tagsWidget = QWidget(self)
+        self.tagsLayout = FlowLayout(self.tagsWidget)
 
         self.exportWidget = QWidget(self)
         self.exportWidgetLayout = QHBoxLayout(self.exportWidget)
@@ -140,6 +171,8 @@ class InfoPanel(QFrame,Translator):
 
         self.scrollWidgetLayout.addWidget(self.titleImage)
         self.scrollWidgetLayout.addWidget(self.titelWidget)
+        self.scrollWidgetLayout.addWidget(self.tagsWidget)
+
         self.scrollWidgetLayout.setContentsMargins(0,0,0,0)
         self.scrollWidgetLayout.setSpacing(0)
         self.scrollWidgetLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -151,16 +184,26 @@ class InfoPanel(QFrame,Translator):
         self.titelWidget.setObjectName("InfoPanelTitleWidget")
         self.titelWidgetLayout.addWidget(self.titleLabel)
         self.titelWidgetLayout.addWidget(self.typeLabel)
+        self.titelWidgetLayout.addWidget(self.categoryLabel)
+        self.titelWidgetLayout.addWidget(self.subCategoryLabel)
 
         self.button_export.clicked.connect(lambda:self.onExportClicked.emit())
 
         self.titleLabel.setObjectName("titleLabel")
         self.typeLabel.setObjectName("typeLabel")
-        
-    def setPanelInfo(self,imagePath:str,name:str,type:str):
+        self.categoryLabel.setObjectName("categoryLabel")
+        self.subCategoryLabel.setObjectName("subCategoryLabel")
+
+        self.tagsWidget.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
+        self.tagsWidget.setObjectName("TagWidget")
+
+    def setPanelInfo(self,imagePath:str,name:str,type:str,category:str,subCategory:str):
         self.titleImage.setImgae(imagePath)
         self.titleLabel.setText(name)
         self.typeLabel.setText(type)
+        self.categoryLabel.setText(category)
+        self.subCategoryLabel.setText(subCategory)
+
         pass
     def __loadConfig(self):
         self.combox_res.setCurrentIndex(Config.Get().exportTextureSizeIndex)
@@ -237,13 +280,14 @@ class ItemCardView(QWidget,Translator):
 
         self.flowWidget = FlowWidget(self.scrollArea)
         self.flowLayout = FlowLayout(self.flowWidget,False,True)
-        self.LoadCardCountPerTimes = 10
+        self.LoadCardCountPerTimes = 30
         self.currentLoadedCardCount = 0
-
         # methods
         self.__initWidget()
-        
+
+
         self.loadItems()
+
     def __initWidget(self):
         self.view.setObjectName("ItemView")
         self.rootLayout.addWidget(self.view)
@@ -261,7 +305,7 @@ class ItemCardView(QWidget,Translator):
         self.scrollArea.backgroundRole()
         self.scrollArea.setViewportMargins(0,0,0,0)
         self.scrollArea.setObjectName("ItemCardViewScrollArea")
-        self.scrollArea.verticalScrollBar().valueChanged.connect(self.test)
+        self.scrollArea.verticalScrollBar().valueChanged.connect(self.loadItemsByScrollBar)
 
 
         self.flowWidget.setObjectName("flowwidget")
@@ -273,12 +317,13 @@ class ItemCardView(QWidget,Translator):
         self.flowLayout.setVerticalSpacing(self.perItemSpacing)
         self.flowLayout.setHorizontalSpacing(self.perItemSpacing)
         self.flowLayout.setContentsMargins(self.flowLayoutSideMargins,0,self.flowLayoutSideMargins,0)
-        self.flowLayout.setAnimation(250, QEasingCurve.OutQuad)
-
         # 默认关闭信息面板
         self.infoPanel.close()
-    def test(self,value):
-        if value/self.scrollArea.verticalScrollBar().maximum() > 0.8:
+
+        # 从数据库加载数据
+        self.filteredAssetDatas = Config.Get().getAllAssets()
+    def loadItemsByScrollBar(self,value):
+        if value/(self.scrollArea.verticalScrollBar().maximum()+0.1) >= 0.98:
             self.loadItems()
     def setPerCardSize(self,size):
         for card in self.cards:
@@ -290,9 +335,15 @@ class ItemCardView(QWidget,Translator):
         self.infoPanel.close()
         #如果输入的索引大于0,表示选中了有效的项目,否则说明只是清空项目
         if index >=0:
-            libraryAssetData = self.libraryAssetDatas[index]
+            libraryAssetData = self.filteredAssetDatas[index]
             self.cards[index].setSelected(True)
-            self.infoPanel.setPanelInfo(libraryAssetData["previewFile"],libraryAssetData["name"],libraryAssetData["type"])
+            self.infoPanel.setPanelInfo(
+                libraryAssetData["previewFile"],
+                libraryAssetData["name"],
+                libraryAssetData["type"],
+                self.tra(libraryAssetData["category"]),
+                self.tra(libraryAssetData["subcategory"])
+                )
             self.infoPanel.show()
         self.currentSelectedIndex = index
     def clearAllCards(self):
@@ -302,29 +353,32 @@ class ItemCardView(QWidget,Translator):
             del card
         self.cards = []
     def loadItems(self):
-        self.libraryAssetDatas = Config.Get().getAllAssets()
         for i in range(self.currentLoadedCardCount,self.currentLoadedCardCount+self.LoadCardCountPerTimes):
-            if i < len(self.libraryAssetDatas):
-                self.addItemCard(self.libraryAssetDatas[i]["previewFile"],self.libraryAssetDatas[i]["name"])
+            if i < len(self.filteredAssetDatas):
+                self.addItemCard(self.filteredAssetDatas[i]["previewFile"],self.filteredAssetDatas[i]["name"])
+                self.currentLoadedCardCount+=1
             else:
                 return
-        self.currentLoadedCardCount += self.LoadCardCountPerTimes
     def searchAssets(self,keyword:str):
-        self.setAllCardsHidden(False)
-        for i in range(len(self.cards)):
-            asset = self.libraryAssetDatas[i]
-            pattern = asset["name"] + asset["AssetID"] + ",".join(asset["tags"])
-            if keyword.lower() in pattern.lower():
-                continue
-            self.cards[i].setHidden(True)
-    def clearSearch(self):
-        self.setAllCardsHidden(False)
-    def setAllCardsHidden(self,hidden:bool):
-        for i in range(len(self.cards)):
-            self.cards[i].setHidden(False)
-    def reloadItems(self):
         self.clearAllCards()
+        self.currentLoadedCardCount = 0
+        datas = Config.Get().getAllAssets()
+        self.filteredAssetDatas = []
+        for data in datas:
+            pattern = data["name"] + data["AssetID"] + ",".join(data["tags"])
+            if keyword.lower() in pattern.lower():
+                self.filteredAssetDatas.append(data)
         self.loadItems()
+    def clearSearch(self):
+        self.clearAllCards()
+        self.currentLoadedCardCount = 0
+        self.filteredAssetDatas = Config.Get().getAllAssets()
+        self.loadItems()
+    def reloadItems(self):
+        # self.currentLoadedCardCount = 0
+        # self.clearAllCards()
+        # self.loadItems()
+        pass
     def addItemCard(self,imagepath:str,name:str):
         index = len(self.cards)
         itemCard = ItemCard(self,index,imagepath,name)
@@ -333,10 +387,10 @@ class ItemCardView(QWidget,Translator):
         self.cards.append(itemCard)
         self.flowLayout.addWidget(self.cards[index])
     def goToFile(self,index:int):
-        libraryAssetData = self.libraryAssetDatas[index]
+        libraryAssetData = self.filteredAssetDatas[index]
         os.startfile(libraryAssetData["rootFolder"])
     def exportToUnreal(self):
-        if ut.sendAssetToUE(self.libraryAssetDatas[self.currentSelectedIndex],Config.Get().getSendSocketAddress(),self.infoPanel.combox_res.currentIndex()):
+        if ut.sendAssetToUE(self.filteredAssetDatas[self.currentSelectedIndex],Config.Get().getSendSocketAddress(),self.infoPanel.combox_res.currentIndex()):
             InfoBar.success(
                 title=self.tra('Notice:'),
                 content=self.tra("Export successful"),

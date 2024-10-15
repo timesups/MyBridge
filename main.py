@@ -1,8 +1,8 @@
 
 # coding: utf-8
-from qfluentwidgets import NavigationItemPosition,FluentWindow,toggleTheme,NavigationItemPosition,SplashScreen
+from qfluentwidgets import NavigationItemPosition,FluentWindow,toggleTheme,SplashScreen,NavigationTreeWidget
 from qfluentwidgets import FluentIcon as FIF
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication,QAction
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
 import app.resource.resource_rc
@@ -35,12 +35,15 @@ class MainWindow(FluentWindow,Translator):
         self.__createSubInterface()
 
         self.splashScreen.finish()
+
     def __createSubInterface(self):
         self.homeInterface = HomeInterface(self)
         self.SettingInterface = SettingInterface(self)
         self.importInterface = ImportInterface(self)
         nvaigration = self.addSubInterface(self.homeInterface,FIF.HOME,self.tra("Home"))
-        nvaigration.clicked.connect(self.homeInterface.item_card_view.reloadItems)
+        #nvaigration.clicked.connect(self.homeInterface.item_card_view.reloadItems)
+        #navi_favorite = NavigationTreeWidget(FIF.HEART,text=self.tra("Favorite"),isSelectable=True,parent=nvaigration)
+        #nvaigration.addChild(navi_favorite)
         nvaigration = self.addSubInterface(self.importInterface,FIF.DOWNLOAD,self.tra("Import"))
         nvaigration = self.addSubInterface(self.SettingInterface,FIF.SETTING,self.tra("Settings"),NavigationItemPosition.BOTTOM)
     def __initWindow(self):
@@ -49,11 +52,12 @@ class MainWindow(FluentWindow,Translator):
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
 
 def startApp():
-    app = QApplication(sys.argv)
+    app = QApplication.instance()
+    if not app:
+        app = QApplication(sys.argv)
     toggleTheme()
     window = MainWindow()
     window.show() 
-
     sys.exit(app.exec_())
 
 if __name__ == "__main__":

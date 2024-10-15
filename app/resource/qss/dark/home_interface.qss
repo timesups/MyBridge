@@ -36,13 +36,27 @@ ItemHeader{
 #InfoPanelTitleWidget{
     background-color: rgb(55, 55, 55);
 }
-
+#TagWidget
+{
+    background-color: rgb(35, 35, 35);
+}
 #titleLabel{
     color: rgb(255, 255, 255);
     font: 30px 'Segoe UI', 'PingFang SC';
     font-weight: bold;
 }
 #typeLabel{
+    color: rgb(128, 128, 128);
+    font: 15px 'Segoe UI', 'PingFang SC';
+    font-weight: bold;
+}
+#categoryLabel{
+    color: rgb(128, 128, 128);
+    font: 15px 'Segoe UI', 'PingFang SC';
+    font-weight: bold;
+}
+
+#subCategoryLabel{
     color: rgb(128, 128, 128);
     font: 15px 'Segoe UI', 'PingFang SC';
     font-weight: bold;

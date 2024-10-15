@@ -524,7 +524,7 @@ def CopyAndRenameAsset(asset:Asset):
     if not os.path.exists(asset.rootFolder):
         os.makedirs(asset.rootFolder)
     # 获取资产编号
-    asset.AssetIndex = Config.Get().getCurrentAssetCount()
+    asset.AssetIndex = Config.Get().getRemoteDataBaseAssetsCount()
 
     asset.JsonUri = os.path.join(asset.rootFolder,f"{asset.AssetID}.json")
 

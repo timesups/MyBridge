@@ -13,7 +13,7 @@ from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
                          QResizeEvent,QPalette)
 from PyQt5.QtCore import QObject, QSize,pyqtSignal
 from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,QThread
-
+import time
 
 from app.core.common_widget import QLine
 from app.core.utility import AssetCategory,AssetSize,AssetSubccategory,AssetType,ClassifyFilesFormFolder,MakeAssetByData,CopyAndRenameAsset
@@ -163,6 +163,8 @@ class TabBarButton(QWidget):
 
 class MakeAssetWorker(QThread):
     onFinished = pyqtSignal()
+    onRemoteDatabaseIsUsed = pyqtSignal()
+    onRemoteDatabaseIsUsedCountDone = pyqtSignal()
     def __init__(self, assetData,parent: QObject | None = ...) -> None:
         super().__init__(parent)
         self.assetdata = assetData
@@ -182,10 +184,18 @@ class MakeAssetWorker(QThread):
             tags        = asset.tags,
             type        = asset.type.value,
             previewFile = asset.previewFile[0],
-            rootFolder  = asset.rootFolder
+            rootFolder  = asset.rootFolder,
             )
-        Config.Get().addAssetToDB(assetToLibraryData)
-        self.onFinished.emit()
+        while True:
+            if not Config.Get().isRemoteDataBaseInUsed():
+                Config.Get().addAssetToDB(assetToLibraryData)
+                self.onFinished.emit()
+                break
+            else:
+                self.onRemoteDatabaseIsUsed.emit()
+                time.sleep(5)
+                self.onRemoteDatabaseIsUsedCountDone.emit()
+
 class ImportSettings(QWidget,Translator):
     startImported = pyqtSignal()
     endImported = pyqtSignal(int)

@@ -3,14 +3,26 @@ from tinydb import TinyDB, Query
 import shutil
 import hashlib
 import json
+import win32file
 
-
+def is_used(file_name):
+    try:
+        vHandle = win32file.CreateFile(file_name,win32file.GENERIC_READ,0,None,win32file.OPEN_EXISTING,win32file.FILE_ATTRIBUTE_NORMAL,None)
+        return int(vHandle) == win32file.INVALID_HANDLE_VALUE
+    except:
+        return True
+    finally:
+        try:
+            win32file.CloseHandle(vHandle)
+        except:
+            pass
 def calculate_md5(file_path, block_size=65536):
     md5 = hashlib.md5()
     with open(file_path, 'rb') as f:
         for block in iter(lambda: f.read(block_size), b''):
             md5.update(block)
     return md5.hexdigest()
+
 
 
 class Config:
@@ -58,7 +70,6 @@ class Config:
         except KeyError:
             pass
     def __initDataBase(self):
-        self.remoteDataBase = TinyDB(self.remoteDataBasepath)
         if os.path.exists(self.localDataBsePath):
             self.localDataBase = TinyDB(self.localDataBsePath)
         else:
@@ -69,7 +80,6 @@ class Config:
         if os.path.exists(self.remoteDataBasepath):
             if not os.path.exists(self.localDataBsePath):
                 shutil.copyfile(self.remoteDataBasepath,self.localDataBsePath)
-                return
             if calculate_md5(self.localDataBsePath) != calculate_md5(self.remoteDataBasepath):
                 try:
                     # 当前的本地资产库已经存在时需要解除占用才能从服务器正确同步数据库文件
@@ -79,15 +89,31 @@ class Config:
                     pass
                 os.remove(self.localDataBsePath)
                 shutil.copyfile(self.remoteDataBasepath,self.localDataBsePath)
-                return
+        else:
+            remoteDataBase = TinyDB(self.remoteDataBasepath)
+            remoteDataBase.close()
+            self.__syncDataCache()
     def isIDinDB(self,id:str):
+        remoteDataBase = TinyDB(self.remoteDataBasepath)
         user = Query()
-        result = self.remoteDataBase.search(user.AssetID == id)
+        result = remoteDataBase.search(user.AssetID == id)
         if result == []:
             return False
+        remoteDataBase.close()
         return result
     def addAssetToDB(self,assetData:dict):
-        self.remoteDataBase.insert(assetData)
+        import time
+        remoteDataBase = TinyDB(self.remoteDataBasepath)
+        time.sleep(10)
+        remoteDataBase.insert(assetData)
+        remoteDataBase.close()
+    def getRemoteDataBaseAssetsCount(self)->int:
+        remoteDataBase = TinyDB(self.remoteDataBasepath)
+        count = remoteDataBase.all()
+        remoteDataBase.close()
+        return count
+    def isRemoteDataBaseInUsed(self):
+        return is_used(self.remoteDataBasepath)
     def getAllAssets(self):
         # 从服务器同步数据库
         self.__syncDataCache()
@@ -97,8 +123,7 @@ class Config:
             return self.localDataBase.all()
         else:
             return []
-    def getCurrentAssetCount(self)->int:
-        return len(self.remoteDataBase.all())
+
     def __createFolders(self):
         folders = [
             self.remoteAssetLibraryFolder,
