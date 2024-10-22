@@ -2,12 +2,12 @@
 from qfluentwidgets import (PushButton,SmoothScrollArea,ComboBox,
                             TitleLabel,CheckBox,LineEdit,
                             LineEditButton,IndeterminateProgressRing,
-                            InfoBar,InfoBarPosition)
+                            InfoBar,InfoBarPosition,FlowLayout)
 from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import (QApplication,QWidget,
                              QHBoxLayout,QVBoxLayout,
                              QLabel,QLineEdit,QTabWidget,
-                             QFileDialog,QTabBar)
+                             QFileDialog,QTabBar,QSizePolicy)
 from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QImage,QPixmap,QColor, 
                          QResizeEvent,QPalette)
@@ -82,6 +82,7 @@ class DirectiorySelectGroup(QWidget):
             self.lineEdit.selectFile()
 
 class LineEidtGroup(QWidget):
+
     def __init__(self, parent,text:str,textMaxWidth:int = 50):
         super().__init__(parent)
         self.textMaxWidth = textMaxWidth
@@ -219,6 +220,19 @@ class ImportSettings(QWidget,Translator):
 
         self.label_nameTga = TitleLabel(self.tra("Import Settings"),self)
         self.leg_name = LineEidtGroup(self,self.tra("Name"),self.maxTextWidth)
+
+        self.tags_widegt = QWidget(self)
+        self.tags_widegt.setMinimumHeight(30)
+
+        self.tags_flowLayout = FlowLayout(self.tags_widegt,False)
+
+        self.tags_flowLayout .setContentsMargins(10,10,10,10)
+        self.tags_flowLayout .setVerticalSpacing(20)
+        self.tags_flowLayout .setHorizontalSpacing(10)
+
+
+
+        self.tags = []
         self.leg_tags = LineEidtGroup(self,self.tra("Tags"),self.maxTextWidth)
         
         self.combox_type = ComboxGroup(self,self.tra("Type"),self.maxTextWidth)
@@ -292,7 +306,10 @@ class ImportSettings(QWidget,Translator):
 
         self.scrollWidgetLayout.addWidget(self.label_nameTga)
         self.scrollWidgetLayout.addWidget(self.leg_name)
+        self.scrollWidgetLayout.addWidget(self.tags_widegt)
         self.scrollWidgetLayout.addWidget(self.leg_tags)
+
+        self.leg_tags.lineEdit.returnPressed.connect(self.addTag)
 
         self.scrollWidgetLayout.addWidget(QLine.HLine(self))
 
@@ -360,6 +377,11 @@ class ImportSettings(QWidget,Translator):
         self.combox_SurfaceSize.addItems([self.tra(item.value) for item in list(AssetSize.__members__.values())])
         self.addLod()
         self.refreshWidget()
+    def addTag(self):
+        tag = self.leg_tags.lineEdit.text()
+        self.leg_tags.lineEdit.clear()
+        self.tags_flowLayout.addWidget(PushButton(text=tag))
+        self.tags.append(tag)
     def setImagePreview(self,path):
         self.ImagePreview.setPixmap(scaleMap(250,250,path))
     def addLod(self):
@@ -399,7 +421,7 @@ class ImportSettings(QWidget,Translator):
     def importAsset(self):
         self.startImported.emit()
         name = self.leg_name.lineEdit.text()
-        tags = self.leg_tags.lineEdit.text()
+
 
         currentIndex = self.combox_type.combox.currentIndex() 
         type = list(AssetType.__members__.values())[currentIndex].value
@@ -460,7 +482,7 @@ class ImportSettings(QWidget,Translator):
         )
         assetData = dict(
             name = name,
-            tags = tags,
+            tags = self.tags,
             type = type,
             surfaceSize = surfaceSize,
             TilesVertically = TilesVertically,

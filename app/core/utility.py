@@ -473,9 +473,8 @@ def MakeAssetByData(datas:dict)->Asset:
     asset = Asset()
     asset.name = datas["name"]
 
-    #清空标签两侧的空格,并清除无意义的空标签
-    datas["tags"] = datas["tags"].strip()
-    asset.tags = [tag for tag in datas["tags"].split(",") if tag != ""]
+
+    asset.tags = datas["tags"]
 
     asset.type = copy.deepcopy(AssetType._value2member_map_[datas["type"]])
     asset.category = copy.deepcopy(AssetCategory._value2member_map_[datas["category"]])

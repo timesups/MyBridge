@@ -42,7 +42,7 @@ class MainWindow(FluentWindow,Translator):
         self.SettingInterface = SettingInterface(self)
         self.importInterface = ImportInterface(self)
         nvaigration = self.addSubInterface(self.homeInterface,FIF.HOME,self.tra("Home"))
-        #nvaigration.clicked.connect(self.homeInterface.item_card_view.reloadItems)
+        nvaigration.clicked.connect(lambda:self.homeInterface.item_card_view.searchAssets(""))
         #navi_favorite = NavigationTreeWidget(FIF.HEART,text=self.tra("Favorite"),isSelectable=True,parent=nvaigration)
         #nvaigration.addChild(navi_favorite)
         nvaigration = self.addSubInterface(self.importInterface,FIF.DOWNLOAD,self.tra("Import"))
