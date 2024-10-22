@@ -1,13 +1,13 @@
 # coding: utf-8
-from qfluentwidgets import (NavigationItemPosition,FluentWindow,SubtitleLabel,setFont,SplitFluentWindow,setTheme,
-                            Theme,FlowLayout,PushButton,SmoothScrollArea,applyThemeColor,SearchLineEdit,
-                            ComboBox,NavigationTreeWidget,toggleTheme,NavigationItemPosition,
-                            TitleLabel,CheckBox,LineEdit,LineEditButton,IndeterminateProgressRing,InfoBar,InfoBarPosition)
+from qfluentwidgets import (PushButton,SmoothScrollArea,ComboBox,
+                            TitleLabel,CheckBox,LineEdit,
+                            LineEditButton,IndeterminateProgressRing,
+                            InfoBar,InfoBarPosition)
 from qfluentwidgets import FluentIcon as FIF
-from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
-                             QFrame,QHBoxLayout,QVBoxLayout,
-                             QAction,QLabel,QLineEdit,QTabWidget,
-                             QPushButton,QFileDialog,QTabBar)
+from PyQt5.QtWidgets import (QApplication,QWidget,
+                             QHBoxLayout,QVBoxLayout,
+                             QLabel,QLineEdit,QTabWidget,
+                             QFileDialog,QTabBar)
 from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QImage,QPixmap,QColor, 
                          QResizeEvent,QPalette)
@@ -20,7 +20,7 @@ from app.core.utility import AssetCategory,AssetSize,AssetSubccategory,AssetType
 from app.core.style_sheet import StyleSheet
 from app.core.translator import Translator
 from app.core.config import Config
-
+from app.core.qtUtility import scaleMap
 
 class SelectFileLineEdit(LineEdit):
     selectedFile = pyqtSignal()
@@ -52,6 +52,7 @@ class SelectFileLineEdit(LineEdit):
         self.rootPath = path
  
 class DirectiorySelectGroup(QWidget):
+    textChanged = pyqtSignal(str)
     def __init__(self, parent,text:str,textMaxWidth:int = 50,title:str="选择一个文件",filter:str = "All Files(*)",rootPath:str="."):
         super().__init__(parent)
         self.texMaxWidth = textMaxWidth
@@ -73,6 +74,7 @@ class DirectiorySelectGroup(QWidget):
         self.checkbox.setFixedWidth(15)
     def __initConnections(self):
         self.lineEdit.selectedFile.connect(lambda: self.checkbox.setChecked(True))
+        self.lineEdit.textChanged.connect(lambda: self.textChanged.emit(self.lineEdit.text()))
         self.checkbox.stateChanged.connect(self.selectFile)
         pass
     def selectFile(self):
@@ -233,7 +235,10 @@ class ImportSettings(QWidget,Translator):
         
         self.combox_SurfaceSize = ComboxGroup(self.widgetSize,self.tra("Surface Size"),self.maxTextWidth)
         self.checkbox_TilesVertically = CheckBox(self.tra("Tiles Vertically"),self.widgetSize)
+        self.checkbox_TilesVertically.setChecked(True)
         self.checkobx_TillesHorizontically = CheckBox(self.tra("Tiles Horizontically"),self.widgetSize)
+        self.checkobx_TillesHorizontically.setChecked(True)
+
 
         self.group_texAlbedo = DirectiorySelectGroup(self,self.tra("Albedo"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
         self.group_texbrush = DirectiorySelectGroup(self,self.tra("Brush"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
@@ -259,6 +264,10 @@ class ImportSettings(QWidget,Translator):
         self.button_addlod = PushButton("add lod Mesh",self.scrollWidget)
         
         self.group_previewImage = DirectiorySelectGroup(self,self.tra("Preview Image"),self.maxTextWidth,filter="all files(*)",rootPath=self.rootPath)
+
+        self.ImagePreview = QLabel(self)
+
+
         self.button_importAsset = PushButton("Import",self)
         
         self.__initWidget()
@@ -319,8 +328,11 @@ class ImportSettings(QWidget,Translator):
         self.scrollWidgetLayout.addWidget(QLine.HLine(self))
 
         self.scrollWidgetLayout.addWidget(self.group_previewImage)
+        self.scrollWidgetLayout.addWidget(self.ImagePreview,alignment=Qt.AlignmentFlag.AlignCenter)
         self.scrollWidgetLayout.addWidget(self.button_importAsset)
         self.scrollWidgetLayout.setContentsMargins(30,40,30,40)
+
+        self.group_previewImage.textChanged.connect(self.setImagePreview)
 
         self.button_addlod.clicked.connect(self.addLod)
         self.lodWidgetLayout.setContentsMargins(0,0,0,0)
@@ -348,6 +360,8 @@ class ImportSettings(QWidget,Translator):
         self.combox_SurfaceSize.addItems([self.tra(item.value) for item in list(AssetSize.__members__.values())])
         self.addLod()
         self.refreshWidget()
+    def setImagePreview(self,path):
+        self.ImagePreview.setPixmap(scaleMap(250,250,path))
     def addLod(self):
         index = len(self.lods)
         group = DirectiorySelectGroup(self,self.tra(f"LOD {index}"),self.maxTextWidth,title="选择一个模型",filter="fbx file(*.fbx)",rootPath=self.rootPath)
@@ -357,11 +371,22 @@ class ImportSettings(QWidget,Translator):
         widgets = [self.combox_SurfaceSize,self.checkbox_TilesVertically,self.checkobx_TillesHorizontically,self.lodWidget,self.OriginMesh,self.button_addlod]
         for w in widgets:
             w.setHidden(False)
-        if self.combox_type.combox.currentText() == AssetType.Assets3D.value:
+        currentIndex = self.combox_type.combox.currentIndex() 
+        currentType = list(AssetType.__members__.values())[currentIndex]
+
+        if currentType == AssetType.Assets3D:
             self.combox_SurfaceSize.setHidden(True)
             self.checkbox_TilesVertically.setHidden(True)
             self.checkobx_TillesHorizontically.setHidden(True)
-        elif self.combox_type.combox.currentText() == AssetType.Surface.value:
+        elif currentType == AssetType.Plant:
+            self.combox_SurfaceSize.setHidden(True)
+            self.checkbox_TilesVertically.setHidden(True)
+            self.checkobx_TillesHorizontically.setHidden(True)
+        elif currentType == AssetType.Surface:
+            self.OriginMesh.setHidden(True)
+            self.lodWidget.setHidden(True)
+            self.button_addlod.setHidden(True)
+        elif currentType == AssetType.Decal:
             self.OriginMesh.setHidden(True)
             self.lodWidget.setHidden(True)
             self.button_addlod.setHidden(True)
@@ -375,7 +400,21 @@ class ImportSettings(QWidget,Translator):
         self.startImported.emit()
         name = self.leg_name.lineEdit.text()
         tags = self.leg_tags.lineEdit.text()
-        type = self.combox_type.combox.currentText()
+
+        currentIndex = self.combox_type.combox.currentIndex() 
+        type = list(AssetType.__members__.values())[currentIndex].value
+
+        currentIndex = self.combox_category.combox.currentIndex()
+        category = list(AssetCategory.__members__.values())[currentIndex].value
+
+
+        currentIndex = self.combox_subcategory.combox.currentIndex()
+        subCategory = list(AssetSubccategory.__members__.values())[currentIndex].value
+
+
+        currentIndex = self.combox_SurfaceSize.combox.currentIndex()
+        surfaceSize = list(AssetSize.__members__.values())[currentIndex].value
+
         albedo = self.group_texAlbedo.lineEdit.text()
         ao = self.group_texAO.lineEdit.text()
         brush = self.group_texbrush.lineEdit.text()
@@ -393,6 +432,10 @@ class ImportSettings(QWidget,Translator):
         specular = self.group_texSpecular.lineEdit.text()
         translucency = self.group_texTranslucency.lineEdit.text()
         orginMesh = self.OriginMesh.lineEdit.text()
+
+        TilesVertically = self.checkbox_TilesVertically.isChecked()
+        TillesHorizontically = self.checkobx_TillesHorizontically.isChecked()
+        
         lods = []
         for lodwidget in self.lods:
             lods.append(lodwidget.lineEdit.text())
@@ -419,6 +462,11 @@ class ImportSettings(QWidget,Translator):
             name = name,
             tags = tags,
             type = type,
+            surfaceSize = surfaceSize,
+            TilesVertically = TilesVertically,
+            TillesHorizontically = TillesHorizontically,
+            category = category,
+            subCategory = subCategory,
             mapData = mapData,
             orginMesh =orginMesh,
             lods = lods,
@@ -536,7 +584,7 @@ class ImportInterface(QWidget,Translator):
         self.itemButtonListWidgetLayout.addWidget(button)
         self.switchWidget.addTab(importSettings,assetName)
         self.setCurrentItem(button.index)
-
+        hasOpacity = False
         for image in files["images"]:
             if "albedo" in image.lower():
                 importSettings.group_texAlbedo.lineEdit.setText(image)
@@ -568,11 +616,18 @@ class ImportInterface(QWidget,Translator):
             elif "specular" in image.lower():
                 importSettings.group_texSpecular.lineEdit.setText(image)
                 importSettings.group_texSpecular.checkbox.setChecked(True)
+            elif "opacity" in image.lower():
+                importSettings.group_texOpacity.lineEdit.setText(image)
+                importSettings.group_texOpacity.checkbox.setChecked(True)
+                hasOpacity = True
             elif ".jpg" in image.lower():
                 importSettings.group_previewImage.lineEdit.setText(image)
                 importSettings.group_previewImage.checkbox.setChecked(True)
         if files["models"] == []:
-            importSettings.combox_type.combox.setCurrentText(AssetType.Surface.value)
+            if hasOpacity:
+                importSettings.combox_type.combox.setCurrentText(self.tra(AssetType.Decal.value))
+            else:
+                importSettings.combox_type.combox.setCurrentText(self.tra(AssetType.Surface.value))
         lodIndexs = {}
         for meshUri in files["models"]:
             if ".fbx" in meshUri.lower() and "lod" not in meshUri.lower():

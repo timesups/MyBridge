@@ -1,5 +1,5 @@
 
-import utility as utility
+import app.core.utility as utility
 import os
 import json
 
@@ -17,10 +17,10 @@ def json_load(json_data,path):
     asset_data = utility.Asset()
 
     asset_data.name             = json_data["name"]
-    asset_data.ZbrushFile       = field(default_factory=str)
-    asset_data.AssetID          = field(default_factory=str)
+    asset_data.ZbrushFile       = ""
+    asset_data.AssetID          = ""
     asset_data.rootFolder       = path
-    asset_data.JsonUri          = field(default_factory=str)
+    asset_data.JsonUri          = ""
 
     asset_data.tags             = json_data["tags"]
     asset_data.previewFile      = folderTraversal(path,'previews')
@@ -38,7 +38,7 @@ def json_load(json_data,path):
     asset_data.TilesV           = False
     asset_data.TilesH           = False
 
-    asset_data.AssetIndex       = field(default_factory=int)
+    asset_data.AssetIndex       = 0
 
     return asset_data
 
@@ -273,7 +273,6 @@ def bridgeToAsset(path):
                     try:
                         json_data=json.load(js_file)
                         asset_data = json_load(json_data,root_path)
-                        print(asset_data.name)
                         return asset_data
                     except:
                         return False

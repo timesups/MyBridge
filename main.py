@@ -5,6 +5,7 @@ from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import QApplication,QAction
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
+from PyQt5.QtNetwork import QLocalSocket,QLocalServer
 import app.resource.resource_rc
 
 import sys
@@ -52,19 +53,38 @@ class MainWindow(FluentWindow,Translator):
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
 
 def startApp():
-    app = QApplication.instance()
-    if not app:
-        app = QApplication(sys.argv)
+    serverName = "ServerForSingle"
+    socket = QLocalSocket()
+    socket.connectToServer(serverName)
+    if socket.waitForConnected(200):
+        return
+    else:
+        localServer = QLocalServer()
+        localServer.listen(serverName)
+    app = QApplication(sys.argv)
     toggleTheme()
     window = MainWindow()
     window.show() 
+    localServer.close()
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
-    # from core.utility import sendCodeToUE
-    # from core.config import Config
-    # print(sendCodeToUE( 'print("Hello World")',(Config.Get().sockeAddress,Config.Get().socketSendPort)))
     startApp()
+    # import os
+
+    # from app.core.bridge_type import bridgeToAsset
+    
+    # folder = r"O:\Shade\Quixel_Textures\Downloaded\surface"
+    # successfulAssetCount = 0
+    # allFolderCount = 0
+    # for path in os.listdir(folder):
+    #     rootFolder = os.path.join(folder,path)
+    #     asset = bridgeToAsset(rootFolder)
+    #     allFolderCount += 1
+    #     if asset:
+    #         successfulAssetCount += 1
+    # print(successfulAssetCount/allFolderCount)
+    # print(successfulAssetCount)
     pass
 
 

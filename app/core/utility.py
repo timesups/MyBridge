@@ -1,7 +1,6 @@
 from enum import Enum
 import os
 from dataclasses import dataclass,field
-from collections import OrderedDict
 import random
 import string
 import shutil
@@ -10,11 +9,7 @@ import json
 from PIL import Image
 import socket
 
-
 from app.core.config import Config
-
-
-
 
 
 
@@ -29,6 +24,8 @@ class TextureSize(MyBridgetGlobalEnum):
 class AssetType(MyBridgetGlobalEnum):
     Assets3D = "3D Assets"
     Surface = "Surface"
+    Decal   = "Decal"
+    Plant   = "Plant"
 
 class Format(MyBridgetGlobalEnum):
     FBX = "Fbx"
@@ -475,8 +472,14 @@ def GetTextureSize(uri:str):
 def MakeAssetByData(datas:dict)->Asset:
     asset = Asset()
     asset.name = datas["name"]
-    asset.tags = [tag for tag in datas["tags"].split(",")]
+
+    #清空标签两侧的空格,并清除无意义的空标签
+    datas["tags"] = datas["tags"].strip()
+    asset.tags = [tag for tag in datas["tags"].split(",") if tag != ""]
+
     asset.type = copy.deepcopy(AssetType._value2member_map_[datas["type"]])
+    asset.category = copy.deepcopy(AssetCategory._value2member_map_[datas["category"]])
+    asset.subcategory = copy.deepcopy(AssetSubccategory._value2member_map_[datas["subCategory"]])
     material = Material()
     for mapType in datas["mapData"].keys():
         mapPath = datas["mapData"][mapType]
@@ -509,7 +512,9 @@ def MakeAssetByData(datas:dict)->Asset:
         if os.path.exists(zbrushFileUri):
             asset.ZbrushFile = zbrushFileUri
     elif asset.type == AssetType.Surface:
-        pass
+        asset.surfaceSize = copy.deepcopy(AssetSize._value2member_map_[datas["surfaceSize"]])
+        asset.TilesV =  datas["TilesVertically"]
+        asset.TilesH = datas["TillesHorizontically"]
     else:
         pass
     asset.previewFile.append(datas["previewImage"])

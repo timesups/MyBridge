@@ -63,10 +63,11 @@ class ItemCard(QFrame):
         self.setProperty("isSelected",self.isSelected)
         self.setStyle(QApplication.style())
     def contextMenuEvent(self, a0: QContextMenuEvent | None) -> None:
-        # menu = ItemCardContextMenu(self)
-        # actionGoToFile = menu.addAction("go to file")
-        # actionGoToFile.triggered.connect(lambda :self.goToFile.emit(self.index))
-        # menu.exec_(self.mapToGlobal(self.geometry().center()))
+        menu = ItemCardContextMenu(self)
+        actionGoToFile = menu.addAction("go to file")
+        actionGoToFile.triggered.connect(lambda :self.goToFile.emit(self.index))
+        menu.move(a0.globalPos())
+        menu.show()
         pass
     def enterEvent(self, a0: QEvent | None) -> None:
         self.isHove = True
@@ -75,9 +76,10 @@ class ItemCard(QFrame):
         self.isHove = False
         return super().leaveEvent(a0)
     def mouseReleaseEvent(self, e: QMouseEvent | None) -> None:
-        if self.isSelected:
-            return
-        self.clicked.emit(self.index)
+        if e.button() == 1:
+            if self.isSelected:
+                return
+            self.clicked.emit(self.index)
     def resizeEvent(self, a0: QResizeEvent | None) -> None:
         if not self.worker.isRunning():
             self.worker.imageOrigin =  self.item_pixel_map
@@ -253,11 +255,12 @@ class ItemHeader(QFrame):
 
 
 class FlowWidget(QWidget):
-    clicked = pyqtSignal()
+    RightMouseclicked = pyqtSignal()
     def __init__(self,parent=None):
         super().__init__(parent=parent)
     def mouseReleaseEvent(self, a0: QMouseEvent | None) -> None:
-        self.clicked.emit()
+        if a0.button() == 1:
+            self.RightMouseclicked.emit()
 
 class ItemCardView(QWidget,Translator):
     def __init__(self,parent=None):
@@ -309,7 +312,7 @@ class ItemCardView(QWidget,Translator):
 
 
         self.flowWidget.setObjectName("flowwidget")
-        self.flowWidget.clicked.connect(lambda: self.setSelectedItem(-1))
+        self.flowWidget.RightMouseclicked.connect(lambda: self.setSelectedItem(-1))
 
         self.infoPanel.onExportClicked.connect(self.exportToUnreal)
 
@@ -340,7 +343,7 @@ class ItemCardView(QWidget,Translator):
             self.infoPanel.setPanelInfo(
                 libraryAssetData["previewFile"],
                 libraryAssetData["name"],
-                libraryAssetData["type"],
+                self.tra(libraryAssetData["type"]),
                 self.tra(libraryAssetData["category"]),
                 self.tra(libraryAssetData["subcategory"])
                 )

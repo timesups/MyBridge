@@ -66,3 +66,15 @@ SmoothScrollArea{
     border: 0px solid rgb(39, 39, 39);
     background-color: transparent;
 }
+
+ItemCardContextMenu
+{
+    color: rgb(255, 255, 255);
+    background-color: rgb(35, 35, 35);
+    border: 1px solid rgb(0, 0, 0);
+}
+
+ItemCardContextMenu:hover
+{
+    background-color: rgb(0, 174, 255);
+}
