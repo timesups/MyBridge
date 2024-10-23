@@ -6,11 +6,14 @@ import string
 import shutil
 import copy
 import json
-from PIL import Image
+from PIL import Image,ImageFile
+import OpenEXR
+import Imath
+import numpy
+import numexpr as ne
 import socket
 
 from app.core.config import Config
-
 
 
 
@@ -411,6 +414,10 @@ class Material(SerializeBase):
     name         : str               = field(default_factory=str)
     maps         : list[AssetMap]    = field(default_factory=list[AssetMap])
 @dataclass(repr=False)
+class MeshVar(SerializeBase):
+    OriginMesh     : AssetMesh         = field(default_factory=AssetMesh)
+    Lods           : list[LOD]         = field(default_factory=list[LOD])
+@dataclass(repr=False)
 class Asset(SerializeBase):
     name           : str               = field(default_factory=str)
     ZbrushFile     : str               = field(default_factory=str)
@@ -422,6 +429,7 @@ class Asset(SerializeBase):
     previewFile    : list[str]         = field(default_factory=list[str])
     Lods           : list[LOD]         = field(default_factory=list[LOD])
     assetMaterials : list[Material]    = field(default_factory=list[Material])
+    MeshVars : list[MeshVar]    = field(default_factory=list[MeshVar])
 
     type           : AssetType         = field(default=AssetType.Assets3D)
     category       : AssetCategory     = field(default=AssetCategory.Building)
@@ -459,8 +467,48 @@ def ClassifyFilesFormFolder(folder:str):
         if ext == ".jpg":
             assetName = basename
     return dict(assetName = assetName,images = images,models=models)
+FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+
+
+def exr_to_array(exrfile):
+    file = OpenEXR.InputFile(exrfile)
+    dw = file.header()['dataWindow']
+
+    channels = list(file.header()['channels'].keys())
+    channels_list = [c for c in ('R', 'G', 'B', 'A') if c in channels]
+    size = (dw.max.x - dw.min.x + 1, dw.max.y - dw.min.y + 1)
+
+    color_channels = file.channels(channels_list, FLOAT)
+    channels_tuple = [numpy.frombuffer(channel, dtype='f') for channel in color_channels]
+    
+    return numpy.dstack(channels_tuple).reshape(size + (len(channels_tuple),))
+
+
+def encode_to_srgb(x):
+    a = 0.055
+    return ne.evaluate("""where(
+                            x <= 0.0031308,
+                            x * 12.92,
+                            (1 + a) * (x ** (1 / 2.4)) - a
+                          )""")
+
+
+def exr_to_srgb(exrfile):
+    array = exr_to_array(exrfile)
+    result = encode_to_srgb(array) * 255.
+    present_channels = ["R", "G", "B", "A"][:result.shape[2]]
+    channels = "".join(present_channels)
+    return Image.fromarray(result.astype('uint8'), channels)
+
+def readImage(filePath)->ImageFile:
+    _,ext = os.path.splitext(filePath)
+    if ext.lower() == '.exr':
+        image = exr_to_srgb(filePath)
+    else:
+        image = Image.open(filePath)
+    return image
 def GetTextureSize(uri:str):
-    image = Image.open(uri)
+    image = readImage(uri)
     size = image.size
     maxSize = max(size[0],size[1])
     if maxSize >= 8192:
@@ -469,6 +517,9 @@ def GetTextureSize(uri:str):
         return TextureSize._4k
     else:
         return TextureSize._2k
+def removeFolder(path):
+    if os.path.exists(path):
+        shutil.rmtree(path)
 def MakeAssetByData(datas:dict)->Asset:
     asset = Asset()
     asset.name = datas["name"]
@@ -495,7 +546,7 @@ def MakeAssetByData(datas:dict)->Asset:
         material.maps.append(assetMap)
         material.name = asset.name
     asset.assetMaterials.append(material)
-    if asset.type == AssetType.Assets3D:
+    if asset.type == AssetType.Assets3D or asset.type == AssetType.Plant:
         asset.OriginMesh = AssetMesh()
         asset.OriginMesh.uri = datas["orginMesh"]
         asset.OriginMesh.name,asset.OriginMesh.extension = os.path.splitext(os.path.basename(datas["orginMesh"]))
@@ -510,7 +561,7 @@ def MakeAssetByData(datas:dict)->Asset:
         zbrushFileUri = asset.OriginMesh.uri.replace("fbx","ZTL")
         if os.path.exists(zbrushFileUri):
             asset.ZbrushFile = zbrushFileUri
-    elif asset.type == AssetType.Surface:
+    elif asset.type == AssetType.Surface or asset.type == AssetType.Decal:
         asset.surfaceSize = copy.deepcopy(AssetSize._value2member_map_[datas["surfaceSize"]])
         asset.TilesV =  datas["TilesVertically"]
         asset.TilesH = datas["TillesHorizontically"]
@@ -529,10 +580,11 @@ def CopyAndRenameAsset(asset:Asset):
         os.makedirs(asset.rootFolder)
     # 获取资产编号
     asset.AssetIndex = Config.Get().getRemoteDataBaseAssetsCount()
-
     asset.JsonUri = os.path.join(asset.rootFolder,f"{asset.AssetID}.json")
 
-    if asset.type == AssetType.Assets3D:
+    
+
+    if asset.type == AssetType.Assets3D or asset.type == AssetType.Plant:
         for i in range(len(asset.Lods)):
             asset.Lods[i].mesh.name = f"{asset.AssetID}_LOD{asset.Lods[i].level}{asset.Lods[i].mesh.extension}"
             asset.Lods[i].mesh.uri = CopyFileToFolder(asset.Lods[i].mesh.uri,asset.rootFolder,asset.Lods[i].mesh.name)
@@ -565,6 +617,8 @@ def generate_unique_string(length=10):
         if not Config.Get().isIDinDB(random_string):
             return random_string
 def CopyFileToFolder(filePath:str,folder:str,newName:str = None):
+    if not os.path.exists(filePath):
+        return ""
     newFileName = os.path.basename(filePath)
     if newName:
         newFileName = newName
@@ -583,7 +637,7 @@ def scaleImage(imagePath:str):
     name,ext = os.path.splitext(baseName)
     dirName = os.path.dirname(imagePath)
 
-    image = Image.open(imagePath)
+    image = readImage(imagePath)
     w,h = image.size
     image.thumbnail((512,int(512/w *h)))
     newpath = os.path.join(dirName,f"{name}_thumb{ext}")
@@ -609,19 +663,41 @@ def copyMapToFolder(map:AssetMap,folder:str)->AssetMap:
     map.uri = newUri
     return map
 
-def GenARMMap(ao:str,roughness:str,metallic:str,assetID:str,extension:str)->str:
+def GenARMMap(ao:str,roughness:str,metallic:str,assetID:str,opacity:str,Translucency:str,extension:str,type:AssetType)->str:
     dirName = os.path.dirname(ao)
     armUri = os.path.join(dirName,f"{assetID}_ARM{extension}")
     if os.path.exists(armUri):
         return armUri
-    aoImage = Image.open(ao).convert("L")
-    rouImage = Image.open(roughness).convert("L")
-    metaImage = Image.open(metallic).convert("L")
-    assert aoImage.size == rouImage.size == metaImage.size
-    r,g,b = aoImage.split()[0],rouImage.split()[0],metaImage.split()[0]
-    armImage = Image.merge("RGB",(r,g,b))
-    armImage.save(armUri)
+    if ao:
+        aoImage = readImage(ao).convert("L")
+    if roughness:
+        rouImage = readImage(roughness).convert("L")
+    if metallic:
+        metaImage = readImage(metallic).convert("L")
+    if opacity:
+        opacityImage = readImage(opacity).convert("L")
+    if Translucency:
+        translucencyImage = readImage(Translucency).convert("L")
+    
+    if type == AssetType.Assets3D or type == AssetType.Surface:
+        r,g,b = aoImage.split()[0],rouImage.split()[0],metaImage.split()[0]
+        armImage = Image.merge("RGB",(r,g,b))
+        armImage.save(armUri)
+        return armUri
+    elif type == AssetType.Decal:
+        r,g,b,a = aoImage.split()[0],rouImage.split()[0],metaImage.split()[0],opacityImage.split()[0]
+        armImage = Image.merge("RGBA",(r,g,b,a))
+        armImage.save(armUri)
+        pass
+    elif type == AssetType.Plant:
+        r,g,b,a = aoImage.split()[0],rouImage.split()[0],translucencyImage.split()[0],opacityImage.split()[0]
+        armImage = Image.merge("RGBA",(r,g,b,a))
+        armImage.save(armUri)
+        pass
+    else:
+        pass
     return armUri
+
 def ResizeTextureByString(uri:str,rootDir:str,size:str):
     if not os.path.exists(rootDir):
         os.makedirs(rootDir)
@@ -630,12 +706,12 @@ def ResizeTextureByString(uri:str,rootDir:str,size:str):
     if os.path.exists(newFileuri):
         return newFileuri
     if size == "2K":
-        image = Image.open(uri)
+        image = readImage(uri)
         image = image.resize((2048,2048))
         image.save(newFileuri)
         return newFileuri
     elif size == "4K":
-        image = Image.open(uri)
+        image = readImage(uri)
         image = image.resize((4096,4096))
         image.save(newFileuri)
         return newFileuri
@@ -644,6 +720,7 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int):
     with open(libraryAssetData["jsonUri"],'r',encoding="utf-8") as f:
             asset = Asset.from_dict(json.loads(f.read()))
     if asset.assetFormat == AssetFormat.FBX:
+        #获取所有需要的贴图
         size = list(TextureSize.__members__.values())[sizeIndex].value
         meshUri = asset.OriginMesh.uri
         Ao = None
@@ -651,6 +728,8 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int):
         BaseColor = None
         Normal = None
         Metallic = None
+        Opacity = None
+        Translucency = None
         extension = ".png"
         for map in asset.assetMaterials[0].maps:
             mapUri = map.uri
@@ -658,7 +737,6 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int):
                 mapUri = ResizeTextureByString(mapUri,os.path.join(asset.rootFolder,f"Thumbs/{size}"),size)
             if map.type== AssetMapType.Albedo:
                 BaseColor = mapUri
-                extension = map.extension
             elif map.type == AssetMapType.AO:
                 Ao = mapUri
             elif map.type == AssetMapType.Metalness:
@@ -667,11 +745,28 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int):
                 Normal = mapUri
             elif map.type == AssetMapType.Roughness:
                 Roughness = mapUri
+            elif map.type == AssetMapType.Opacity:
+                Opacity = mapUri
+            elif map.type == AssetMapType.Translucency:
+                Translucency = mapUri
             else:
                 pass
-        if not (Ao and Roughness and BaseColor and Normal and Metallic):
-            return
-        armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,extension)
+        if asset.type == AssetType.Assets3D:
+            if not (Ao and Roughness and BaseColor and Normal and Metallic):
+                return
+            armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,Opacity,Translucency,extension,asset.type)
+        elif asset.type == AssetType.Surface:
+            if not (Ao and Roughness and BaseColor and Normal and Metallic):
+                return
+            armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,Opacity,Translucency,extension,asset.type)
+        elif asset.type == AssetType.Decal:
+            if not (Ao and Roughness and BaseColor and Normal and Metallic and Opacity):
+                return
+            armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,Opacity,Translucency,extension,asset.type)
+        elif asset.type == AssetType.Plant:
+            if not (Ao and Roughness and BaseColor and Normal and Opacity and Translucency):
+                return
+            armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,Opacity,Translucency,extension,asset.type)
     elif asset.assetFormat == AssetFormat.UnrealEngine:
         pass
     message = dict(

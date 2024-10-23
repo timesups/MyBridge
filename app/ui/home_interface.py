@@ -2,7 +2,7 @@ from qfluentwidgets import (NavigationItemPosition,FluentWindow,SubtitleLabel,
                             setFont,SplitFluentWindow,setTheme,
                             Theme,FlowLayout,PushButton,
                             SmoothScrollArea,applyThemeColor,SearchLineEdit,
-                            ComboBox,NavigationTreeWidget,ImageLabel,TitleLabel,InfoBar,InfoBarPosition)
+                            ComboBox,NavigationTreeWidget,ImageLabel,TitleLabel,InfoBar,InfoBarPosition,Dialog,PrimaryPushButton)
 from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
                              QFrame,QHBoxLayout,QVBoxLayout,
@@ -39,6 +39,7 @@ class ImageScaleWorker(QThread):
 class ItemCard(QFrame):
     clicked = pyqtSignal(int)
     goToFile = pyqtSignal(int)
+    deleteItem = pyqtSignal(int)
     def __init__(self,parent,index:int,imagePath:str,name:str,size:int=250):
         super().__init__(parent=parent)
         self.setFixedSize(size,size)
@@ -64,8 +65,11 @@ class ItemCard(QFrame):
         self.setStyle(QApplication.style())
     def contextMenuEvent(self, a0: QContextMenuEvent | None) -> None:
         menu = ItemCardContextMenu(self)
-        actionGoToFile = menu.addAction("go to file")
+        actionGoToFile = menu.addAction("打开文件夹")
         actionGoToFile.triggered.connect(lambda :self.goToFile.emit(self.index))
+
+        actionDelete = menu.addAction("删除资产")
+        actionDelete.triggered.connect(lambda :self.deleteItem.emit(self.index))
         menu.move(a0.globalPos())
         menu.show()
         pass
@@ -378,20 +382,33 @@ class ItemCardView(QWidget,Translator):
         self.filteredAssetDatas = Config.Get().getAllAssets()
         self.loadItems()
     def reloadItems(self):
-        # self.currentLoadedCardCount = 0
-        # self.clearAllCards()
-        # self.loadItems()
-        pass
+        self.clearAllCards()
+        self.currentLoadedCardCount = 0
+        datas = Config.Get().getAllAssets()
+        self.filteredAssetDatas = []
+        for data in datas:
+            self.filteredAssetDatas.append(data)
+        self.loadItems()
     def addItemCard(self,imagepath:str,name:str):
         index = len(self.cards)
         itemCard = ItemCard(self,index,imagepath,name)
         itemCard.clicked.connect(self.setSelectedItem)
         itemCard.goToFile.connect(self.goToFile)
+        itemCard.deleteItem.connect(self.deleteAsset)
         self.cards.append(itemCard)
         self.flowLayout.addWidget(self.cards[index])
     def goToFile(self,index:int):
         libraryAssetData = self.filteredAssetDatas[index]
         os.startfile(libraryAssetData["rootFolder"])
+    def deleteAsset(self,index:int):
+        libraryAssetData = self.filteredAssetDatas[index]
+        w = Dialog("提示",f"是否删除资产{libraryAssetData['name']}?")
+        w.setTitleBarVisible(False)
+        w.setContentCopyable(True)
+        if w.exec():
+            ut.removeFolder(libraryAssetData["rootFolder"])
+            Config.Get().deleteAssetFromDB(libraryAssetData["AssetID"])
+            self.reloadItems()
     def exportToUnreal(self):
         if ut.sendAssetToUE(self.filteredAssetDatas[self.currentSelectedIndex],Config.Get().getSendSocketAddress(),self.infoPanel.combox_res.currentIndex()):
             InfoBar.success(

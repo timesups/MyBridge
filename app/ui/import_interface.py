@@ -2,7 +2,7 @@
 from qfluentwidgets import (PushButton,SmoothScrollArea,ComboBox,
                             TitleLabel,CheckBox,LineEdit,
                             LineEditButton,IndeterminateProgressRing,
-                            InfoBar,InfoBarPosition,FlowLayout)
+                            InfoBar,InfoBarPosition,FlowLayout,Dialog)
 from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import (QApplication,QWidget,
                              QHBoxLayout,QVBoxLayout,
@@ -80,7 +80,15 @@ class DirectiorySelectGroup(QWidget):
     def selectFile(self):
         if self.checkbox.isChecked() and self.lineEdit.text() == "":
             self.lineEdit.selectFile()
-
+class TagButton(PushButton):
+    index = 0
+    deletClicked = pyqtSignal(int)
+    def __init__(self,text,icon,parent=None):
+        super().__init__(parent)
+        self.setText(text)
+        self.setIcon(icon)
+        self.clicked.connect(lambda:self.deletClicked.emit(self.index))
+    pass
 class LineEidtGroup(QWidget):
 
     def __init__(self, parent,text:str,textMaxWidth:int = 50):
@@ -207,7 +215,7 @@ class ImportSettings(QWidget,Translator):
         self.index = index
         #value
         self.maxTextWidth = 150
-        self.texFilter = "png(*.png);;exr(*.exr);;jpeg(*.jpg)"
+        self.texFilter = "图像(*.jpg *.png *.exr)"
         self.lods:list[DirectiorySelectGroup] = []
         self.rootPath = rootpath
         #widget
@@ -380,8 +388,16 @@ class ImportSettings(QWidget,Translator):
     def addTag(self):
         tag = self.leg_tags.lineEdit.text()
         self.leg_tags.lineEdit.clear()
-        self.tags_flowLayout.addWidget(PushButton(text=tag))
+        tagbutton = TagButton(text=tag,icon = FIF.DELETE,parent=self)
+        tagbutton.index = len(self.tags)
+        tagbutton.deletClicked.connect(self.deleteTag)
+        tagbutton.setObjectName(f"TagButton_{tagbutton.index}")
+        self.tags_flowLayout.addWidget(tagbutton)
         self.tags.append(tag)
+    def deleteTag(self,index:int):
+        self.findChild()
+
+        pass
     def setImagePreview(self,path):
         self.ImagePreview.setPixmap(scaleMap(250,250,path))
     def addLod(self):
@@ -419,9 +435,10 @@ class ImportSettings(QWidget,Translator):
     def __initConnection(self):
         self.button_importAsset.clicked.connect(self.importAsset)
     def importAsset(self):
-        self.startImported.emit()
         name = self.leg_name.lineEdit.text()
-
+        if name == "":
+            self.showDialog("错误",f"请输入资产名称")
+            return
 
         currentIndex = self.combox_type.combox.currentIndex() 
         type = list(AssetType.__members__.values())[currentIndex].value
@@ -433,35 +450,94 @@ class ImportSettings(QWidget,Translator):
         currentIndex = self.combox_subcategory.combox.currentIndex()
         subCategory = list(AssetSubccategory.__members__.values())[currentIndex].value
 
-
         currentIndex = self.combox_SurfaceSize.combox.currentIndex()
         surfaceSize = list(AssetSize.__members__.values())[currentIndex].value
 
-        albedo = self.group_texAlbedo.lineEdit.text()
-        ao = self.group_texAO.lineEdit.text()
-        brush = self.group_texbrush.lineEdit.text()
-        bump = self.group_texBump.lineEdit.text()
-        cavity = self.group_texCavity.lineEdit.text()
-        diffuse = self.group_texDiffuse.lineEdit.text()
-        displacement = self.group_texDisplacement.lineEdit.text()
-        fuzz = self.group_texFuzz.lineEdit.text()
-        gloss = self.group_texGloss.lineEdit.text()
-        mask = self.group_texMask.lineEdit.text()
-        metalness = self.group_texMetalness.lineEdit.text()
-        normal = self.group_texNormal.lineEdit.text()
-        opacity = self.group_texOpacity.lineEdit.text()
-        roughness = self.group_texRoughness.lineEdit.text()
-        specular = self.group_texSpecular.lineEdit.text()
-        translucency = self.group_texTranslucency.lineEdit.text()
-        orginMesh = self.OriginMesh.lineEdit.text()
+
+        if self.group_texAlbedo.checkbox.isChecked():
+            albedo = self.group_texAlbedo.lineEdit.text()
+        else:
+            albedo = ""
+        if self.group_texAO.checkbox.isChecked():
+            ao = self.group_texAO.lineEdit.text()
+        else:
+            ao = ""
+        if self.group_texbrush.checkbox.isChecked():
+            brush = self.group_texbrush.lineEdit.text()   
+        else:
+            brush = ""      
+        if self.group_texBump.checkbox.isChecked():
+            bump = self.group_texBump.lineEdit.text()
+        else:
+            bump = ""
+        if self.group_texCavity.checkbox.isChecked():
+            cavity = self.group_texCavity.lineEdit.text()
+        else:
+            cavity = ""
+        if self.group_texDiffuse.checkbox.isChecked():
+            diffuse = self.group_texDiffuse.lineEdit.text()
+        else:
+            diffuse = ""
+        if self.group_texDisplacement.checkbox.isChecked():
+            displacement = self.group_texDisplacement.lineEdit.text()
+        else:
+            displacement = ""
+        if self.group_texFuzz.checkbox.isChecked():
+            fuzz = self.group_texFuzz.lineEdit.text()
+        else:
+            fuzz = ""
+        if self.group_texGloss.checkbox.isChecked():
+            gloss = self.group_texGloss.lineEdit.text()
+        else:
+            gloss = ""
+        if self.group_texMask.checkbox.isChecked():
+            mask = self.group_texMask.lineEdit.text()
+        else:
+            mask = ""
+        if self.group_texMetalness.checkbox.isChecked():
+            metalness = self.group_texMetalness.lineEdit.text()
+        else:
+            metalness = ""
+        if self.group_texNormal.checkbox.isChecked():
+            normal = self.group_texNormal.lineEdit.text()
+        else:
+            normal = ""
+        if self.group_texOpacity.checkbox.isChecked():
+            opacity = self.group_texOpacity.lineEdit.text()
+        else:
+            opacity = ""
+        if self.group_texRoughness.checkbox.isChecked():
+            roughness = self.group_texRoughness.lineEdit.text()
+        else:
+            roughness = ""
+        if self.group_texSpecular.checkbox.isChecked():
+            specular = self.group_texSpecular.lineEdit.text()
+        else:
+            specular = ""
+        if self.group_texTranslucency.checkbox.isChecked():
+            translucency = self.group_texTranslucency.lineEdit.text()
+        else:
+            translucency = ""
+        if self.OriginMesh.checkbox.isChecked():                                                                                                                                                                        
+            orginMesh = self.OriginMesh.lineEdit.text()
+        else:
+            orginMesh = ""
+        if self.group_previewImage.checkbox.isChecked():    
+            previewImage = self.group_previewImage.lineEdit.text()
+        else:
+            previewImage = ""
+
 
         TilesVertically = self.checkbox_TilesVertically.isChecked()
         TillesHorizontically = self.checkobx_TillesHorizontically.isChecked()
-        
         lods = []
         for lodwidget in self.lods:
-            lods.append(lodwidget.lineEdit.text())
-        previewImage = self.group_previewImage.lineEdit.text()
+            if lodwidget.checkbox.isChecked():
+                lods.append(lodwidget.lineEdit.text())
+
+        if orginMesh == "" or previewImage == "" :
+            self.showDialog("错误",f"当前资产信息不全请检查后重试")
+            return
         mapData = dict(
             Albedo = albedo,
             AO = ao,
@@ -494,10 +570,17 @@ class ImportSettings(QWidget,Translator):
             lods = lods,
             previewImage = previewImage
         )
+
+        self.startImported.emit()
         makeAssetWorker = MakeAssetWorker(assetData,self)
         makeAssetWorker.onFinished.connect(self.importFinished)
         makeAssetWorker.start()
         self.setEnabled(False)
+    def showDialog(self,title,content):
+        w = Dialog(title,content)
+        w.setTitleBarVisible(False)
+        w.setContentCopyable(True)
+        return(w.exec())
     def importFinished(self):
         self.endImported.emit(self.index)
 class TabBar(QTabBar):

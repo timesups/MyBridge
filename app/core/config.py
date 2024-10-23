@@ -102,11 +102,13 @@ class Config:
         remoteDataBase.close()
         return result
     def addAssetToDB(self,assetData:dict):
-        import time
         remoteDataBase = TinyDB(self.remoteDataBasepath)
-        time.sleep(10)
         remoteDataBase.insert(assetData)
         remoteDataBase.close()
+    def deleteAssetFromDB(self,assetID):
+        remoteDataBase = TinyDB(self.remoteDataBasepath)
+        user = Query()
+        remoteDataBase.remove(user.AssetID==assetID)
     def getRemoteDataBaseAssetsCount(self)->int:
         remoteDataBase = TinyDB(self.remoteDataBasepath)
         count = remoteDataBase.all()

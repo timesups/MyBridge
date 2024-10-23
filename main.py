@@ -7,7 +7,6 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
 from PyQt5.QtNetwork import QLocalSocket,QLocalServer
 import app.resource.resource_rc
-
 import sys
 
 from app.core.Log import log
@@ -42,9 +41,7 @@ class MainWindow(FluentWindow,Translator):
         self.SettingInterface = SettingInterface(self)
         self.importInterface = ImportInterface(self)
         nvaigration = self.addSubInterface(self.homeInterface,FIF.HOME,self.tra("Home"))
-        nvaigration.clicked.connect(lambda:self.homeInterface.item_card_view.searchAssets(""))
-        #navi_favorite = NavigationTreeWidget(FIF.HEART,text=self.tra("Favorite"),isSelectable=True,parent=nvaigration)
-        #nvaigration.addChild(navi_favorite)
+        nvaigration.clicked.connect(lambda:self.homeInterface.item_card_view.reloadItems())
         nvaigration = self.addSubInterface(self.importInterface,FIF.DOWNLOAD,self.tra("Import"))
         nvaigration = self.addSubInterface(self.SettingInterface,FIF.SETTING,self.tra("Settings"),NavigationItemPosition.BOTTOM)
     def __initWindow(self):
