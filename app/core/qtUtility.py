@@ -13,7 +13,21 @@ from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
 from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,pyqtSignal
 
 
+class RouteItem():
+    def __init__(self,name,) -> None:
+        pass
 
+
+class Route():
+    instance = None
+    def __init__(self) -> None:
+        pass
+
+    @classmethod
+    def Get(cls):
+        if not cls.instance:
+            cls.instance = cls()
+        return cls.instance
 
 def scaleMap(width:int,height:int,mapPath:str)-> QPixmap:
     original_pixelmap = QPixmap(mapPath)

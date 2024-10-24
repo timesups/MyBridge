@@ -395,9 +395,10 @@ class ImportSettings(QWidget,Translator):
         self.tags_flowLayout.addWidget(tagbutton)
         self.tags.append(tag)
     def deleteTag(self,index:int):
-        self.findChild()
-
-        pass
+        tagbutton = self.findChild(TagButton,f"TagButton_{index}")
+        self.tags.remove(tagbutton.text())
+        self.tags_flowLayout.removeWidget(tagbutton)
+        tagbutton.close()
     def setImagePreview(self,path):
         self.ImagePreview.setPixmap(scaleMap(250,250,path))
     def addLod(self):
