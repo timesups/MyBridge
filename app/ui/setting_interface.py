@@ -16,6 +16,8 @@ from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,QStandardPaths,pyqtSignal
 from qfluentwidgets.common.icon import FluentIconBase
 from app.core.style_sheet import StyleSheet
 
+import os
+
 from app.core.Log import log
 from app.core.config import Config
 from app.core.translator import Translator

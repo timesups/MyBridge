@@ -520,16 +520,18 @@ def GetTextureSize(uri:str):
 def removeFolder(path):
     if os.path.exists(path):
         shutil.rmtree(path)
-def MakeAssetByData(datas:dict)->Asset:
+
+
+#进入此函数的所有路径需要保证完成规格化
+def MakeAndCopyAsset(datas:dict)->Asset:
     asset = Asset()
     asset.name = datas["name"]
-
-
     asset.tags = datas["tags"]
 
     asset.type = copy.deepcopy(AssetType._value2member_map_[datas["type"]])
     asset.category = copy.deepcopy(AssetCategory._value2member_map_[datas["category"]])
     asset.subcategory = copy.deepcopy(AssetSubccategory._value2member_map_[datas["subCategory"]])
+
     material = Material()
     for mapType in datas["mapData"].keys():
         mapPath = datas["mapData"][mapType]
@@ -572,36 +574,41 @@ def MakeAssetByData(datas:dict)->Asset:
     return CopyAndRenameAsset(asset)
 
 def CopyAndRenameAsset(asset:Asset):
+    
     # 计算资产ID
     asset.AssetID = generate_unique_string(7)
     # 创建资产根目录
-    asset.rootFolder = os.path.join(Config.Get().remoteAssetLibrary,f"{asset.name}_{asset.AssetID}")
-    if not os.path.exists(asset.rootFolder):
-        os.makedirs(asset.rootFolder)
+    rootFolder = os.path.join(Config.Get().remoteAssetLibrary,f"{asset.name}_{asset.AssetID}")
+    asset.rootFolder = f"{asset.name}_{asset.AssetID}"
+    if not os.path.exists(rootFolder):
+        os.makedirs(rootFolder)
+    
     # 获取资产编号
     asset.AssetIndex = Config.Get().getRemoteDataBaseAssetsCount()
-    asset.JsonUri = os.path.join(asset.rootFolder,f"{asset.AssetID}.json")
-
-    
 
     if asset.type == AssetType.Assets3D or asset.type == AssetType.Plant:
         for i in range(len(asset.Lods)):
             asset.Lods[i].mesh.name = f"{asset.AssetID}_LOD{asset.Lods[i].level}{asset.Lods[i].mesh.extension}"
-            asset.Lods[i].mesh.uri = CopyFileToFolder(asset.Lods[i].mesh.uri,asset.rootFolder,asset.Lods[i].mesh.name)
+            asset.Lods[i].mesh.uri = CopyFileToFolder(asset.Lods[i].mesh.uri,rootFolder,asset.Lods[i].mesh.name)
+
             asset.Lods[i].normalMap.name = f"{asset.AssetID}_Normal_LOD{asset.Lods[i].level}{asset.Lods[i].normalMap.extension}"
-            asset.Lods[i].normalMap.uri = CopyFileToFolder(asset.Lods[i].normalMap.uri,asset.rootFolder,asset.Lods[i].normalMap.name)
+            asset.Lods[i].normalMap.uri = CopyFileToFolder(asset.Lods[i].normalMap.uri,rootFolder,asset.Lods[i].normalMap.name)
         asset.OriginMesh.name = asset.AssetID + asset.OriginMesh.extension
-        asset.OriginMesh.uri = CopyFileToFolder(asset.OriginMesh.uri,asset.rootFolder,asset.OriginMesh.name)
-        asset.ZbrushFile = CopyFileToFolder(asset.ZbrushFile,asset.rootFolder,f"{asset.AssetID}.ZTL")
+        asset.OriginMesh.uri = CopyFileToFolder(asset.OriginMesh.uri,rootFolder,asset.OriginMesh.name)
+        asset.ZbrushFile = CopyFileToFolder(asset.ZbrushFile,rootFolder,f"{asset.AssetID}.ZTL")
     else:
         pass
     for i in range(len(asset.assetMaterials[0].maps)):
         asset.assetMaterials[0].maps[i].name = f"{asset.AssetID}_{asset.assetMaterials[0].maps[i].type.value}{asset.assetMaterials[0].maps[i].extension}"
-        asset.assetMaterials[0].maps[i].uri = CopyFileToFolder(asset.assetMaterials[0].maps[i].uri,asset.rootFolder,asset.assetMaterials[0].maps[i].name)
+        asset.assetMaterials[0].maps[i].uri = CopyFileToFolder(asset.assetMaterials[0].maps[i].uri,rootFolder,asset.assetMaterials[0].maps[i].name)
     for i in range(len(asset.previewFile)):
         asset.previewFile[i] = scaleImage(asset.previewFile[i])
-        asset.previewFile[i] = MoveFileToFolder(asset.previewFile[i],asset.rootFolder,f"{asset.AssetID}_Preview_{i}.jpg")
-    with open(asset.JsonUri,'w+',encoding='utf-8') as f:
+        asset.previewFile[i] = CopyFileToFolder(asset.previewFile[i],rootFolder,f"{asset.AssetID}_Preview_{i}.jpg",True)
+    
+    
+    JsonUri_abs = os.path.join(rootFolder,f"{asset.AssetID}.json")
+    asset.JsonUri = os.path.basename(JsonUri_abs)
+    with open(JsonUri_abs,'w+',encoding='utf-8') as f:
         f.write(json.dumps(asset.to_dict()))
     return asset
 
@@ -616,22 +623,21 @@ def generate_unique_string(length=10):
         random_string = generate_random_string(length)
         if not Config.Get().isIDinDB(random_string):
             return random_string
-def CopyFileToFolder(filePath:str,folder:str,newName:str = None):
+        
+
+def CopyFileToFolder(filePath:str,folder:str,newName:str = None,move:bool=False):
     if not os.path.exists(filePath):
         return ""
     newFileName = os.path.basename(filePath)
     if newName:
         newFileName = newName
     newFilePath = os.path.join(folder,newFileName)
-    shutil.copyfile(filePath,newFilePath)
-    return newFilePath
-def MoveFileToFolder(filePath:str,folder:str,newName:str = None):
-    newFileName = os.path.basename(filePath)
-    if newName:
-        newFileName = newName
-    newFilePath = os.path.join(folder,newFileName)
-    shutil.move(filePath,newFilePath)
-    return newFilePath
+    if move:
+        shutil.move(filePath,newFilePath)
+    else:
+        shutil.copyfile(filePath,newFilePath)
+    return os.path.basename(newFilePath)
+
 def scaleImage(imagePath:str):
     baseName = os.path.basename(imagePath)
     name,ext = os.path.splitext(baseName)
@@ -716,13 +722,19 @@ def ResizeTextureByString(uri:str,rootDir:str,size:str):
         image.save(newFileuri)
         return newFileuri
     return uri
+
+
 def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int):
     with open(libraryAssetData["jsonUri"],'r',encoding="utf-8") as f:
             asset = Asset.from_dict(json.loads(f.read()))
+
+    rootFolder = os.path.join(Config.Get().remoteAssetLibrary,asset.rootFolder)
+
+
     if asset.assetFormat == AssetFormat.FBX:
         #获取所有需要的贴图
         size = list(TextureSize.__members__.values())[sizeIndex].value
-        meshUri = asset.OriginMesh.uri
+        meshUri = os.path.join(rootFolder,asset.OriginMesh.uri)
         Ao = None
         Roughness = None
         BaseColor = None
@@ -732,9 +744,9 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int):
         Translucency = None
         extension = ".png"
         for map in asset.assetMaterials[0].maps:
-            mapUri = map.uri
+            mapUri = os.path.join(rootFolder,map.uri)
             if map.size.value != size:
-                mapUri = ResizeTextureByString(mapUri,os.path.join(asset.rootFolder,f"Thumbs/{size}"),size)
+                mapUri = ResizeTextureByString(mapUri,os.path.join(rootFolder,f"Thumbs/{size}"),size)
             if map.type== AssetMapType.Albedo:
                 BaseColor = mapUri
             elif map.type == AssetMapType.AO:

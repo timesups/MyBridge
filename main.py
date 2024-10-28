@@ -1,16 +1,18 @@
 
 # coding: utf-8
-from qfluentwidgets import NavigationItemPosition,FluentWindow,toggleTheme,SplashScreen,NavigationTreeWidget
+from qfluentwidgets import NavigationItemPosition,FluentWindow,toggleTheme,SplashScreen,Dialog
 from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import QApplication,QAction
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
 from PyQt5.QtNetwork import QLocalSocket,QLocalServer
+import os
+
 import app.resource.resource_rc
 import sys
 
 from app.core.Log import log
-
+from app.core.config import calculate_md5
 from app.ui.home_interface import HomeInterface
 from app.ui.setting_interface import SettingInterface
 from app.ui.import_interface import ImportInterface
@@ -48,8 +50,10 @@ class MainWindow(FluentWindow,Translator):
         desktop = QApplication.desktop().availableGeometry()
         w, h = desktop.width(), desktop.height()
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
+    def closeEvent(self, e):
+        return super().closeEvent(e)
 
-def startApp():
+def startServe():
     serverName = "ServerForSingle"
     socket = QLocalSocket()
     socket.connectToServer(serverName)
@@ -58,13 +62,37 @@ def startApp():
     else:
         localServer = QLocalServer()
         localServer.listen(serverName)
+    return localServer
+
+
+
+def startApp():
+    localServer = startServe()
     app = QApplication(sys.argv)
     toggleTheme()
-    window = MainWindow()
-    window.show() 
-    localServer.close()
-    sys.exit(app.exec_())
+    update = checkUpdate()
+    if update:
+        import subprocess
+        subprocess.Popen([update])
+    else:
+        window = MainWindow()
+        window.show() 
+        localServer.close()
+        sys.exit(app.exec_())
 
+def checkUpdate():
+    remoteFile = r"\\192.168.3.252\中影年年文化传媒有限公司\6动画基地\制作中心\地编组\Z_赵存喜\MyBirdge\update\MyBridge.exe"
+    current_exe_path = sys.executable if getattr(sys, 'frozen', False) else __file__
+    currentDir = os.path.dirname(current_exe_path)
+    updateExe = os.path.join(currentDir,"update.exe")
+    if os.path.exists(remoteFile) and os.path.exists(updateExe):
+        if calculate_md5(remoteFile) != calculate_md5(current_exe_path):
+            w = Dialog("提示","有新版本,是否更新")
+            w.setTitleBarVisible(False)
+            w.setContentCopyable(True)
+            if w.exec():
+                return updateExe
+    return False
 if __name__ == "__main__":
     startApp()
     # import os

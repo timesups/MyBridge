@@ -14,9 +14,10 @@ from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
 from PyQt5.QtCore import QObject, QSize,pyqtSignal
 from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,QThread
 import time
+import os
 
 from app.core.common_widget import QLine
-from app.core.utility import AssetCategory,AssetSize,AssetSubccategory,AssetType,ClassifyFilesFormFolder,MakeAssetByData,CopyAndRenameAsset
+from app.core.utility import AssetCategory,AssetSize,AssetSubccategory,AssetType,ClassifyFilesFormFolder,MakeAndCopyAsset,CopyAndRenameAsset
 from app.core.style_sheet import StyleSheet
 from app.core.translator import Translator
 from app.core.config import Config
@@ -180,9 +181,9 @@ class MakeAssetWorker(QThread):
         super().__init__(parent)
         self.assetdata = assetData
     def run(self) -> None:
-        asset = MakeAssetByData(self.assetdata)
+        asset = MakeAndCopyAsset(self.assetdata)
         #将资产添加到资产数据库中
-        assetToLibraryData = dict( 
+        assetToLibraryData = dict(
             name        = asset.name,
             AssetID     = asset.AssetID,
             jsonUri     = asset.JsonUri,
@@ -456,75 +457,75 @@ class ImportSettings(QWidget,Translator):
 
 
         if self.group_texAlbedo.checkbox.isChecked():
-            albedo = self.group_texAlbedo.lineEdit.text()
+            albedo = os.path.normpath(self.group_texAlbedo.lineEdit.text())
         else:
             albedo = ""
         if self.group_texAO.checkbox.isChecked():
-            ao = self.group_texAO.lineEdit.text()
+            ao = os.path.normpath(self.group_texAO.lineEdit.text())
         else:
             ao = ""
         if self.group_texbrush.checkbox.isChecked():
-            brush = self.group_texbrush.lineEdit.text()   
+            brush = os.path.normpath(self.group_texbrush.lineEdit.text())
         else:
             brush = ""      
         if self.group_texBump.checkbox.isChecked():
-            bump = self.group_texBump.lineEdit.text()
+            bump = os.path.normpath(self.group_texBump.lineEdit.text())
         else:
             bump = ""
         if self.group_texCavity.checkbox.isChecked():
-            cavity = self.group_texCavity.lineEdit.text()
+            cavity = os.path.normpath(self.group_texCavity.lineEdit.text())
         else:
             cavity = ""
         if self.group_texDiffuse.checkbox.isChecked():
-            diffuse = self.group_texDiffuse.lineEdit.text()
+            diffuse = os.path.normpath(self.group_texDiffuse.lineEdit.text())
         else:
             diffuse = ""
         if self.group_texDisplacement.checkbox.isChecked():
-            displacement = self.group_texDisplacement.lineEdit.text()
+            displacement = os.path.normpath(self.group_texDisplacement.lineEdit.text())
         else:
             displacement = ""
         if self.group_texFuzz.checkbox.isChecked():
-            fuzz = self.group_texFuzz.lineEdit.text()
+            fuzz = os.path.normpath(self.group_texFuzz.lineEdit.text())
         else:
             fuzz = ""
         if self.group_texGloss.checkbox.isChecked():
-            gloss = self.group_texGloss.lineEdit.text()
+            gloss = os.path.normpath(self.group_texGloss.lineEdit.text())
         else:
             gloss = ""
         if self.group_texMask.checkbox.isChecked():
-            mask = self.group_texMask.lineEdit.text()
+            mask = os.path.normpath(self.group_texMask.lineEdit.text())
         else:
             mask = ""
         if self.group_texMetalness.checkbox.isChecked():
-            metalness = self.group_texMetalness.lineEdit.text()
+            metalness = os.path.normpath(self.group_texMetalness.lineEdit.text())
         else:
             metalness = ""
         if self.group_texNormal.checkbox.isChecked():
-            normal = self.group_texNormal.lineEdit.text()
+            normal = os.path.normpath(self.group_texNormal.lineEdit.text())
         else:
             normal = ""
         if self.group_texOpacity.checkbox.isChecked():
-            opacity = self.group_texOpacity.lineEdit.text()
+            opacity = os.path.normpath(self.group_texOpacity.lineEdit.text())
         else:
             opacity = ""
         if self.group_texRoughness.checkbox.isChecked():
-            roughness = self.group_texRoughness.lineEdit.text()
+            roughness = os.path.normpath(self.group_texRoughness.lineEdit.text())
         else:
             roughness = ""
         if self.group_texSpecular.checkbox.isChecked():
-            specular = self.group_texSpecular.lineEdit.text()
+            specular = os.path.normpath(self.group_texSpecular.lineEdit.text())
         else:
             specular = ""
         if self.group_texTranslucency.checkbox.isChecked():
-            translucency = self.group_texTranslucency.lineEdit.text()
+            translucency = os.path.normpath(self.group_texTranslucency.lineEdit.text())
         else:
             translucency = ""
         if self.OriginMesh.checkbox.isChecked():                                                                                                                                                                        
-            orginMesh = self.OriginMesh.lineEdit.text()
+            orginMesh = os.path.normpath(self.OriginMesh.lineEdit.text())
         else:
             orginMesh = ""
         if self.group_previewImage.checkbox.isChecked():    
-            previewImage = self.group_previewImage.lineEdit.text()
+            previewImage = os.path.normpath(self.group_previewImage.lineEdit.text())
         else:
             previewImage = ""
 
@@ -534,7 +535,7 @@ class ImportSettings(QWidget,Translator):
         lods = []
         for lodwidget in self.lods:
             if lodwidget.checkbox.isChecked():
-                lods.append(lodwidget.lineEdit.text())
+                lods.append(os.path.normpath(lodwidget.lineEdit.text()))
 
         if orginMesh == "" or previewImage == "" :
             self.showDialog("错误",f"当前资产信息不全请检查后重试")
@@ -569,9 +570,8 @@ class ImportSettings(QWidget,Translator):
             mapData = mapData,
             orginMesh =orginMesh,
             lods = lods,
-            previewImage = previewImage
+            previewImage = previewImage,
         )
-
         self.startImported.emit()
         makeAssetWorker = MakeAssetWorker(assetData,self)
         makeAssetWorker.onFinished.connect(self.importFinished)
@@ -780,7 +780,6 @@ class ImportInterface(QWidget,Translator):
         self.setEnabled(False)
         pass
     def endImport(self,index:int):
-
         InfoBar.success(
             title=self.tra('notice:'),
             content=f"{self.tra('Asset')} {self.itemButtons[index].label.text()} {self.tra('is imported')}",

@@ -21,8 +21,8 @@ from app.core.qtUtility import scalePixelMap,scaleMap
 import app.core.utility as ut
 from app.core.config import Config
 from app.core.translator import Translator
-
 from app.core.icons import Icons
+
 
 class ItemCardContextMenu(QMenu):
     def __init__(self,parent=None):
@@ -328,7 +328,7 @@ class ItemCardView(QWidget,Translator):
         self.infoPanel.close()
 
         # 从数据库加载数据
-        self.filteredAssetDatas = Config.Get().getAllAssets()
+        self.filteredAssetDatas = self.loadItemFromDataBaseAndMakeItAbs()
     def loadItemsByScrollBar(self,value):
         if value/(self.scrollArea.verticalScrollBar().maximum()+0.1) >= 0.98:
             self.loadItems()
@@ -369,22 +369,31 @@ class ItemCardView(QWidget,Translator):
     def searchAssets(self,keyword:str):
         self.clearAllCards()
         self.currentLoadedCardCount = 0
-        datas = Config.Get().getAllAssets()
+        datas = self.loadItemFromDataBaseAndMakeItAbs()
         self.filteredAssetDatas = []
         for data in datas:
             pattern = data["name"] + data["AssetID"] + ",".join(data["tags"])
             if keyword.lower() in pattern.lower():
                 self.filteredAssetDatas.append(data)
         self.loadItems()
+    def loadItemFromDataBaseAndMakeItAbs(self):
+        datas = Config.Get().getAllAssets()
+        newDatas = []
+        for data in datas:
+            data["rootFolder"] = os.path.join(Config.Get().remoteAssetLibrary,data["rootFolder"])
+            data["previewFile"] = os.path.join(Config.Get().remoteAssetLibrary,data["rootFolder"],data["previewFile"])
+            data["jsonUri"] =os.path.join(Config.Get().remoteAssetLibrary,data["rootFolder"],data["jsonUri"])
+            newDatas.append(data)
+        return newDatas
     def clearSearch(self):
         self.clearAllCards()
         self.currentLoadedCardCount = 0
-        self.filteredAssetDatas = Config.Get().getAllAssets()
+        self.filteredAssetDatas = self.loadItemFromDataBaseAndMakeItAbs()
         self.loadItems()
     def reloadItems(self):
         self.clearAllCards()
         self.currentLoadedCardCount = 0
-        datas = Config.Get().getAllAssets()
+        datas = self.loadItemFromDataBaseAndMakeItAbs()
         self.filteredAssetDatas = []
         for data in datas:
             self.filteredAssetDatas.append(data)
@@ -399,7 +408,7 @@ class ItemCardView(QWidget,Translator):
         self.flowLayout.addWidget(self.cards[index])
     def goToFile(self,index:int):
         libraryAssetData = self.filteredAssetDatas[index]
-        os.startfile(libraryAssetData["rootFolder"])
+        os.startfile(os.path.normpath(libraryAssetData["rootFolder"]))
     def deleteAsset(self,index:int):
         libraryAssetData = self.filteredAssetDatas[index]
         w = Dialog("提示",f"是否删除资产{libraryAssetData['name']}?")

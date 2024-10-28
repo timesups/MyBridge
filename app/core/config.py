@@ -111,7 +111,7 @@ class Config:
         remoteDataBase.remove(user.AssetID==assetID)
     def getRemoteDataBaseAssetsCount(self)->int:
         remoteDataBase = TinyDB(self.remoteDataBasepath)
-        count = remoteDataBase.all()
+        count = len(remoteDataBase.all())
         remoteDataBase.close()
         return count
     def isRemoteDataBaseInUsed(self):
