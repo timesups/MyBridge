@@ -17,7 +17,7 @@ import os
 
 from app.core.Log import log
 from app.core.style_sheet import StyleSheet
-from app.core.qtUtility import scalePixelMap,scaleMap
+from app.core.common_widgets import scalePixelMap,scaleMap
 import app.core.utility as ut
 from app.core.config import Config
 from app.core.translator import Translator
@@ -287,7 +287,7 @@ class ItemCardView(QWidget,Translator):
 
         self.flowWidget = FlowWidget(self.scrollArea)
         self.flowLayout = FlowLayout(self.flowWidget,False,True)
-        self.LoadCardCountPerTimes = 30
+        self.LoadCardCountPerTimes = 36
         self.currentLoadedCardCount = 0
         # methods
         self.__initWidget()

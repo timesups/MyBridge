@@ -1,6 +1,4 @@
-from qfluentwidgets import (NavigationItemPosition,FluentWindow,SubtitleLabel,setFont,SplitFluentWindow,setTheme,
-                            Theme,FlowLayout,PushButton,SmoothScrollArea,applyThemeColor,SearchLineEdit,
-                            ComboBox,NavigationTreeWidget,ImageLabel,TitleLabel,LineEdit,LineEditButton)
+from qfluentwidgets import (Dialog)
 from qfluentwidgets import FluentIcon as FIF
 
 
@@ -13,21 +11,25 @@ from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
 from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,pyqtSignal
 
 
-class RouteItem():
-    def __init__(self,name,) -> None:
-        pass
 
-
-class Route():
-    instance = None
-    def __init__(self) -> None:
-        pass
-
+class QLine(QFrame):
+    def __init__(self,parent=None):
+        super().__init__(parent)
+        self.setFrameShadow(QFrame.Shadow.Sunken)
+    def SetHorizontal(self):
+        self.setFrameShape(QFrame.Shape.HLine)
+    def SetVertical(self):
+        self.setFrameShape(QFrame.Shape.VLine)
     @classmethod
-    def Get(cls):
-        if not cls.instance:
-            cls.instance = cls()
-        return cls.instance
+    def HLine(cls,parent):
+        line = QLine(parent)
+        line.SetHorizontal()
+        return line
+    @classmethod
+    def VLine(cls,parent):
+        line = QLine(parent)
+        line.SetVertical()
+        return line
 
 def scaleMap(width:int,height:int,mapPath:str)-> QPixmap:
     original_pixelmap = QPixmap(mapPath)
@@ -78,3 +80,9 @@ def scalePixelMap(width:int,height:int,original_pixelmap:QPixmap)-> QPixmap:
     painter.end()
 
     return scaled_pixmap
+
+def showDialog(title,content):
+    w = Dialog(title,content)
+    w.setTitleBarVisible(False)
+    w.setContentCopyable(True)
+    return(w.exec())

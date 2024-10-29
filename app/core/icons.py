@@ -1,5 +1,5 @@
 
-from app.core.qtUtility import scalePixelMap,scaleMap
+from app.core.common_widgets import scalePixelMap,scaleMap
 
 
 class Icons():

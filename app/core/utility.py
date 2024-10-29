@@ -12,7 +12,7 @@ import Imath
 import numpy
 import numexpr as ne
 import socket
-
+from tinydb import TinyDB, Query
 from app.core.config import Config
 
 
@@ -795,8 +795,61 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int):
         return True
     else:
         return False
+def refixDB():
+    path = r'\\192.168.3.126\AssetLibrary'
+    dataCachePath = os.path.join(path,"AssetDataCache.json")
+    assetPath = os.path.join(path,"Assets")
+    db = TinyDB(dataCachePath)
+    User = Query()
+    for data in db.all():
+        db.update({"jsonUri":os.path.basename(data["jsonUri"])},User.AssetID == data["AssetID"])
+        db.update({"previewFile":os.path.basename(data["previewFile"])},User.AssetID == data["AssetID"])
+        db.update({"rootFolder":data["rootFolder"].removeprefix("O:/AssetLibrary\\Assets\\")},User.AssetID == data["AssetID"])
+
+def fixAssetData():
+    path = r'\\192.168.3.126\AssetLibrary'
+    dataCachePath = os.path.join(path,"AssetDataCache.json")
+    assetPath = os.path.join(path,"Assets")
+    db = TinyDB(dataCachePath)
+    for i in range(len(db.all())):
+        data = db.all()[i]
+        data["rootFolder"] = os.path.join(assetPath,data["rootFolder"])
+        data["previewFile"] = os.path.join(assetPath,data["rootFolder"],data["previewFile"])
+        data["jsonUri"] =os.path.join(assetPath,data["rootFolder"],data["jsonUri"])
+        with open(data["jsonUri"],'r',encoding="utf-8") as f:
+            assetData = json.loads(f.read())
+        assetData["AssetIndex"] = i
+        asset = Asset.from_dict(assetData)
+        asset.JsonUri = os.path.basename(asset.JsonUri)
+        for i in range(len(asset.Lods)):
+            asset.Lods[i].mesh.uri = os.path.basename(asset.Lods[i].mesh.uri)
+            asset.Lods[i].normalMap.uri = os.path.basename(asset.Lods[i].normalMap.uri)
+        asset.OriginMesh.uri = os.path.basename(asset.OriginMesh.uri)
+        asset.ZbrushFile = os.path.basename(asset.ZbrushFile)
+        for i in range(len(asset.assetMaterials[0].maps)):
+            asset.assetMaterials[0].maps[i].uri = os.path.basename(asset.assetMaterials[0].maps[i].uri)
+        asset.previewFile[0] = os.path.basename(asset.previewFile[0])
+        asset.rootFolder = asset.rootFolder.split("\\")[-1]
+        assetData = asset.to_dict()
+        try:
+            shutil.copy(data["jsonUri"],data["jsonUri"] + ".bak")
+        except:
+            pass
+        with open(data["jsonUri"],'w+',encoding="utf-8") as f:
+            f.write(json.dumps(assetData))
+
+
+def checkReadAccess(path):
+    return(os.access(path,os.R_OK))
+def checkWriteAccess(path):
+    return(os.access(path,os.W_OK) and os.access(path,os.X_OK) )
 if __name__ == "__main__":
-    print(ClassifyFilesFormFolder("d:\Desktop\Temp\Bmwl_1"))
+    path = r"\\192.168.3.252\中影年年文化传媒有限公司\6动画基地\制作中心\地编组"
+    print(checkReadAccess(path))
+    print(checkWriteAccess(path))
+
+
+    
 
     
 

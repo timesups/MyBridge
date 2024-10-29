@@ -16,12 +16,14 @@ from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,QThread
 import time
 import os
 
-from app.core.common_widget import QLine
-from app.core.utility import AssetCategory,AssetSize,AssetSubccategory,AssetType,ClassifyFilesFormFolder,MakeAndCopyAsset,CopyAndRenameAsset
+
+from app.core.utility import AssetCategory,AssetSize,AssetSubccategory,AssetType,ClassifyFilesFormFolder,MakeAndCopyAsset
+import app.core.utility as ut
 from app.core.style_sheet import StyleSheet
 from app.core.translator import Translator
 from app.core.config import Config
-from app.core.qtUtility import scaleMap
+from app.core.common_widgets import scaleMap
+import app.core.common_widgets as common
 
 class SelectFileLineEdit(LineEdit):
     selectedFile = pyqtSignal()
@@ -66,6 +68,7 @@ class DirectiorySelectGroup(QWidget):
         self.lineEdit.setRootPath(rootPath)
         self.__initWidget()
         self.__initConnections()
+        self.GroupLabel = text.lower()
     def __initWidget(self):
         self.rootLayout.setContentsMargins(0,0,0,0)
         self.rootLayout.addWidget(self.checkbox)
@@ -280,6 +283,24 @@ class ImportSettings(QWidget,Translator):
         self.group_texSpecular = DirectiorySelectGroup(self,self.tra("Specular"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
         self.group_texTranslucency = DirectiorySelectGroup(self,self.tra("Translucency"),self.maxTextWidth,filter=self.texFilter,rootPath=self.rootPath)
 
+        self.textureGroups = [
+                                self.group_texAlbedo,
+                                self.group_texbrush,
+                                self.group_texAO,
+                                self.group_texBump,
+                                self.group_texCavity,
+                                self.group_texDiffuse,
+                                self.group_texDisplacement ,
+                                self.group_texFuzz,
+                                self.group_texGloss,
+                                self.group_texMask,
+                                self.group_texMetalness,
+                                self.group_texNormal ,
+                                self.group_texOpacity ,
+                                self.group_texRoughness,
+                                self.group_texSpecular ,
+                                self.group_texTranslucency ,]
+
         self.OriginMesh =  DirectiorySelectGroup(self,self.tra(f"Mesh"),self.maxTextWidth,title="选择一个模型",filter="fbx file(*.fbx)",rootPath=self.rootPath)
 
         self.lodWidget = QWidget(self.scrollWidget)
@@ -320,13 +341,13 @@ class ImportSettings(QWidget,Translator):
 
         self.leg_tags.lineEdit.returnPressed.connect(self.addTag)
 
-        self.scrollWidgetLayout.addWidget(QLine.HLine(self))
+        self.scrollWidgetLayout.addWidget(common.QLine.HLine(self))
 
         self.scrollWidgetLayout.addWidget(self.combox_type)
         self.scrollWidgetLayout.addWidget(self.widgetCategorys)
         self.scrollWidgetLayout.addWidget(self.widgetSize)
 
-        self.scrollWidgetLayout.addWidget(QLine.HLine(self))
+        self.scrollWidgetLayout.addWidget(common.QLine.HLine(self))
 
         self.scrollWidgetLayout.addWidget(self.group_texAlbedo)
         self.scrollWidgetLayout.addWidget(self.group_texAO)
@@ -345,13 +366,13 @@ class ImportSettings(QWidget,Translator):
         self.scrollWidgetLayout.addWidget(self.group_texSpecular)
         self.scrollWidgetLayout.addWidget(self.group_texTranslucency)
 
-        self.scrollWidgetLayout.addWidget(QLine.HLine(self))
+        self.scrollWidgetLayout.addWidget(common.QLine.HLine(self))
 
         self.scrollWidgetLayout.addWidget(self.OriginMesh)
         self.scrollWidgetLayout.addWidget(self.lodWidget)
         self.scrollWidgetLayout.addWidget(self.button_addlod)
 
-        self.scrollWidgetLayout.addWidget(QLine.HLine(self))
+        self.scrollWidgetLayout.addWidget(common.QLine.HLine(self))
 
         self.scrollWidgetLayout.addWidget(self.group_previewImage)
         self.scrollWidgetLayout.addWidget(self.ImagePreview,alignment=Qt.AlignmentFlag.AlignCenter)
@@ -437,6 +458,9 @@ class ImportSettings(QWidget,Translator):
     def __initConnection(self):
         self.button_importAsset.clicked.connect(self.importAsset)
     def importAsset(self):
+        if not ut.checkWriteAccess(Config.Get().remoteAssetLibrary):
+            common.showDialog("错误","当前没有权限操作库")
+            return
         name = self.leg_name.lineEdit.text()
         if name == "":
             self.showDialog("错误",f"请输入资产名称")
@@ -537,9 +561,6 @@ class ImportSettings(QWidget,Translator):
             if lodwidget.checkbox.isChecked():
                 lods.append(os.path.normpath(lodwidget.lineEdit.text()))
 
-        if orginMesh == "" or previewImage == "" :
-            self.showDialog("错误",f"当前资产信息不全请检查后重试")
-            return
         mapData = dict(
             Albedo = albedo,
             AO = ao,
@@ -692,43 +713,14 @@ class ImportInterface(QWidget,Translator):
         self.setCurrentItem(button.index)
         hasOpacity = False
         for image in files["images"]:
-            if "albedo" in image.lower():
-                importSettings.group_texAlbedo.lineEdit.setText(image)
-                importSettings.group_texAlbedo.checkbox.setChecked(True)
-            elif "ao" in image.lower():
-                importSettings.group_texAO.lineEdit.setText(image)
-                importSettings.group_texAO.checkbox.setChecked(True)
-            elif "cavity" in image.lower():
-                importSettings.group_texCavity.lineEdit.setText(image)
-                importSettings.group_texCavity.checkbox.setChecked(True)
-            elif "displacement" in image.lower():
-                importSettings.group_texDisplacement.lineEdit.setText(image)
-                importSettings.group_texDisplacement.checkbox.setChecked(True)
-            elif "fuzz" in image.lower():
-                importSettings.group_texFuzz.lineEdit.setText(image)
-                importSettings.group_texFuzz.checkbox.setChecked(True)
-            elif "gloss" in image.lower():
-                importSettings.group_texGloss.lineEdit.setText(image)
-                importSettings.group_texGloss.checkbox.setChecked(True)
-            elif "metallic" in image.lower():
-                importSettings.group_texMetalness.lineEdit.setText(image)
-                importSettings.group_texMetalness.checkbox.setChecked(True)
-            elif "normal" in image.lower() and "lod" not in image.lower():
-                importSettings.group_texNormal.lineEdit.setText(image)
-                importSettings.group_texNormal.checkbox.setChecked(True)
-            elif "roughness" in image.lower():
-                importSettings.group_texRoughness.lineEdit.setText(image)
-                importSettings.group_texRoughness.checkbox.setChecked(True)
-            elif "specular" in image.lower():
-                importSettings.group_texSpecular.lineEdit.setText(image)
-                importSettings.group_texSpecular.checkbox.setChecked(True)
-            elif "opacity" in image.lower():
-                importSettings.group_texOpacity.lineEdit.setText(image)
-                importSettings.group_texOpacity.checkbox.setChecked(True)
-                hasOpacity = True
-            elif ".jpg" in image.lower():
-                importSettings.group_previewImage.lineEdit.setText(image)
-                importSettings.group_previewImage.checkbox.setChecked(True)
+            #使用文件名识别防止目录中出现和关键词相同的情况
+            fileName = os.path.basename(image)
+            for group in importSettings.textureGroups:
+                if group.GroupLabel in fileName.lower():
+                    group.lineEdit.setText(image)
+                    group.checkbox.setChecked(True)
+                    if group.GroupLabel == "opacity":
+                        hasOpacity = True
         if files["models"] == []:
             if hasOpacity:
                 importSettings.combox_type.combox.setCurrentText(self.tra(AssetType.Decal.value))
@@ -750,6 +742,9 @@ class ImportInterface(QWidget,Translator):
             importSettings.lods[int(l)].checkbox.setChecked(True)
         importSettings.refreshWidget()
     def removeItem(self,index:int):
+        if not ut.checkWriteAccess(Config.Get().remoteAssetLibrary):
+            common.showDialog("错误","当前没有权限操作库")
+            return
         button = self.itemButtons[index]
         button.close()
         self.itemButtonListWidgetLayout.removeWidget(button)
