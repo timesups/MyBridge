@@ -1,4 +1,4 @@
-from qfluentwidgets import (Dialog)
+from qfluentwidgets import (Dialog,PushButton,IndeterminateProgressRing,SubtitleLabel)
 from qfluentwidgets import FluentIcon as FIF
 
 
@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
 from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QImage,QPixmap,QColor, 
                          QResizeEvent)
-from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,pyqtSignal
+from PyQt5.QtCore import QObject, QRect,Qt,QPoint,QEasingCurve,pyqtSignal,QThread
 
 
 
@@ -86,3 +86,40 @@ def showDialog(title,content):
     w.setTitleBarVisible(False)
     w.setContentCopyable(True)
     return(w.exec())
+
+class StringButton(PushButton):
+    onClicked = pyqtSignal(str)
+    def __init__(self,text,icon=FIF.TAG,parent=None):
+        super().__init__(parent)
+        self.setText(text)
+        self.setIcon(icon)
+        self.clicked.connect(lambda:self.onClicked.emit(self.text()))
+
+class CommonWorker(QThread):
+    fun = None
+    def __init__(self, parent: QObject | None = ...) -> None:
+        super().__init__(parent)
+    def run(self) -> None:
+        if self.fun:
+            self.fun()
+
+
+class TitleProgressRing(QWidget):
+    def __init__(self, parent=None, start=True,text=""):
+        super().__init__(parent)
+        self.progressRing = IndeterminateProgressRing(self,start)
+        self.title = SubtitleLabel(text= text,parent=self)
+        self.__initUI()
+    def __initUI(self):
+        self.mainLayout = QVBoxLayout(self)
+        self.mainLayout.addWidget(self.progressRing)
+        self.mainLayout.addWidget(self.title,alignment=Qt.AlignmentFlag.AlignTop)
+
+
+        self.mainLayout.setSpacing(10)
+        self.setContentsMargins(0,0,0,0)
+
+
+        self.setLayout(self.mainLayout)
+        self.setFixedSize(200,200)
+        pass

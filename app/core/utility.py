@@ -13,8 +13,15 @@ import numpy
 import numexpr as ne
 import socket
 from tinydb import TinyDB, Query
+import sys
+from qfluentwidgets import Dialog
+from win32com.client import Dispatch
+import zipfile
+
+
 from app.core.config import Config
 
+UPDATE_SERVE_PATH = r"\\192.168.3.252\中影年年文化传媒有限公司\6动画基地\制作中心\地编组\Z_赵存喜\MyBirdge\update"
 
 
 class MyBridgetGlobalEnum(Enum):
@@ -843,10 +850,86 @@ def checkReadAccess(path):
     return(os.access(path,os.R_OK))
 def checkWriteAccess(path):
     return(os.access(path,os.W_OK) and os.access(path,os.X_OK) )
+
+def getExeVersion(path):
+    information_parser = Dispatch("Scripting.FileSystemObject")
+    version = information_parser.GetFileVersion(path)
+    return(version)
+
+def compareVersion(old:str,new:str):
+    oSplit = old.split(".")
+    nSplit = new.split(".")
+    for i in range(len(oSplit)):
+        if eval(oSplit[i]) < eval(nSplit[i]):
+            return True
+    return False
+
+def get_pid(pname):
+    import psutil
+    pids = []
+    for proc in psutil.process_iter():
+        if proc.name() == pname:
+            pids.append(proc.pid)
+    if len(pids) <= 1:
+        return False
+    else:
+        return True
+
+def GetExePath():
+    exePath = sys.executable if getattr(sys, 'frozen', False) else __file__
+    if '.exe' not in exePath:
+        return False
+    return exePath
+
+def checkUpdate():
+    current_exe_path = GetExePath()
+    if not current_exe_path:
+        return False
+    currentDir = os.path.dirname(current_exe_path)
+    updateExe = os.path.join(currentDir,"update.exe")
+    currentVersion = getExeVersion(current_exe_path)
+    #如果不存在更新exe或者本地exe直接跳过
+    if not os.path.exists(current_exe_path) or not os.path.exists(updateExe):
+        return False
+    files = os.listdir(UPDATE_SERVE_PATH)
+    #判断是否存在新版本文件
+    if len(files) < 1:
+        return False
+    TheNewestFile = files[0]
+    #获取最新的版本
+    for file in files:
+        if compareVersion(os.path.splitext(TheNewestFile)[0].split("_")[-1],os.path.splitext(file)[0].split("_")[-1]):
+            TheNewestFile = file
+    _,ext = os.path.splitext(TheNewestFile)
+    if ext != ".zip":
+        return False
+    TheNewestFilePath = os.path.join(UPDATE_SERVE_PATH,TheNewestFile)
+    DownloadedFilePath = os.path.join(currentDir,TheNewestFile)
+    TheNewestFileVersion = os.path.splitext(TheNewestFile)[0].split("_")[-1]
+    TempFolder = os.path.normpath(os.path.join(currentDir,"Temp"))
+    if compareVersion(currentVersion,TheNewestFileVersion):
+        w = Dialog("提示","有新版本,是否更新")
+        w.setTitleBarVisible(False)
+        w.setContentCopyable(True)
+        if not w.exec():
+            return False
+            #从服务器下载压缩包
+        shutil.copyfile(TheNewestFilePath,DownloadedFilePath)
+        #创建目录
+        if not os.path.exists(TempFolder):
+            os.makedirs(TempFolder)
+        #解压文件
+        with zipfile.ZipFile(DownloadedFilePath,"r") as zipRef:
+            zipRef.extractall(TempFolder)
+        #删除压缩文件
+        os.remove(DownloadedFilePath)
+        return updateExe
+    return False
+
 if __name__ == "__main__":
-    path = r"\\192.168.3.252\中影年年文化传媒有限公司\6动画基地\制作中心\地编组"
-    print(checkReadAccess(path))
-    print(checkWriteAccess(path))
+    exePath = "D:\Documents\ZCXCode\MyBridge\dist\MyBridge\MyBridge.exe"
+    getExeVersion(exePath)
+
 
 
     

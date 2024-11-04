@@ -24,6 +24,7 @@ from app.core.translator import Translator
 from app.core.config import Config
 from app.core.common_widgets import scaleMap
 import app.core.common_widgets as common
+from app.core.Log import Log
 
 class SelectFileLineEdit(LineEdit):
     selectedFile = pyqtSignal()
@@ -652,9 +653,6 @@ class ImportInterface(QWidget,Translator):
 
         self.ImportItemButtonWidget.setFixedWidth(200)
 
-        
-
-
 
         self.ImportItemButtonWidgetLayout.addWidget(self.addNewAssetWidget)
         self.ImportItemButtonWidgetLayout.addWidget(self.itemButtonListWidget)
@@ -721,6 +719,9 @@ class ImportInterface(QWidget,Translator):
                     group.checkbox.setChecked(True)
                     if group.GroupLabel == "opacity":
                         hasOpacity = True
+            if ".jpg" in fileName.lower():
+                importSettings.group_previewImage.lineEdit.setText(image)
+                importSettings.group_previewImage.checkbox.setChecked(True)
         if files["models"] == []:
             if hasOpacity:
                 importSettings.combox_type.combox.setCurrentText(self.tra(AssetType.Decal.value))

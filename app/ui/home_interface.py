@@ -1,23 +1,20 @@
-from qfluentwidgets import (NavigationItemPosition,FluentWindow,SubtitleLabel,
-                            setFont,SplitFluentWindow,setTheme,
-                            Theme,FlowLayout,PushButton,
-                            SmoothScrollArea,applyThemeColor,SearchLineEdit,
-                            ComboBox,NavigationTreeWidget,ImageLabel,TitleLabel,InfoBar,InfoBarPosition,Dialog,PrimaryPushButton)
+from qfluentwidgets import (FlowLayout,PushButton,
+                            SmoothScrollArea,SearchLineEdit,
+                            ComboBox,InfoBar,InfoBarPosition,Dialog)
 from qfluentwidgets import FluentIcon as FIF
-from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
-                             QFrame,QHBoxLayout,QVBoxLayout,
-                             QAction,QStyleOption,QGraphicsDropShadowEffect,QMenu,
+from PyQt5.QtWidgets import (QApplication,QWidget,
+                             QFrame,QHBoxLayout,QVBoxLayout,QMenu,
                              QLabel,QSizePolicy)
-from PyQt5.QtGui import (QContextMenuEvent, QIcon, QMouseEvent, QPaintEvent,
-                         QBrush,QPainter,QImage,QPixmap,QColor, 
+from PyQt5.QtGui import (QContextMenuEvent, QMouseEvent, QPaintEvent,
+                         QBrush,QPainter,QPixmap,QColor, 
                          QResizeEvent)
-from PyQt5.QtCore import QEvent, QRect,Qt,QPoint,QEasingCurve,pyqtSignal,QThread
+from PyQt5.QtCore import QEvent, QRect,Qt,pyqtSignal,QThread
 
 import os
 
-from app.core.Log import log
+from app.core.Log import Log
 from app.core.style_sheet import StyleSheet
-from app.core.common_widgets import scalePixelMap,scaleMap
+from app.core.common_widgets import scalePixelMap,scaleMap,StringButton
 import app.core.utility as ut
 from app.core.config import Config
 from app.core.translator import Translator
@@ -100,9 +97,8 @@ class ItemCard(QFrame):
             painter.fillRect(rect,brush)
         else:
             painter.fillRect(rect,QColor(34,34,34)) 
-        if self.isHove:
+        if self.isHove and self.isEnabled():
             painter.drawText(0+self.__textPaddingX,self.height()-self.__textPaddingY,f"{self.item_name}")
-            # painter.drawPixmap(self.width()-40,self.height()-40,self.heartPixmap)
         painter.end()
 
 
@@ -130,8 +126,11 @@ class InfoPanelImagePreivew(QFrame):
         self.__reloadImage()
         return super().resizeEvent(a0)
 
+
+
 class InfoPanel(QFrame,Translator):
     onExportClicked = pyqtSignal()
+    onTagClicked = pyqtSignal(str)
     def __init__(self,parent):
         super().__init__(parent=parent)
         self.setFixedWidth(400)
@@ -150,12 +149,13 @@ class InfoPanel(QFrame,Translator):
 
         self.titleLabel = QLabel(self.titelWidget,text="titleLabel")
         self.typeLabel = QLabel(self.titelWidget,text="typeLabel")
-        self.categoryLabel = QLabel(self.titelWidget,text="categoryLabel")
-        self.subCategoryLabel = QLabel(self.titelWidget,text="subCategoryLabel")
 
 
-        self.tagsWidget = QWidget(self)
-        self.tagsLayout = FlowLayout(self.tagsWidget)
+        self.tagsWidget = QWidget(self.titelWidget)
+        self.tagsFlowLayout = FlowLayout(self.tagsWidget,False)
+        self.tagsFlowLayout .setContentsMargins(10,10,10,10)
+        self.tagsFlowLayout .setVerticalSpacing(20)
+        self.tagsFlowLayout .setHorizontalSpacing(10)
 
         self.exportWidget = QWidget(self)
         self.exportWidgetLayout = QHBoxLayout(self.exportWidget)
@@ -177,12 +177,12 @@ class InfoPanel(QFrame,Translator):
 
         self.scrollWidgetLayout.addWidget(self.titleImage)
         self.scrollWidgetLayout.addWidget(self.titelWidget)
-        self.scrollWidgetLayout.addWidget(self.tagsWidget)
+
 
         self.scrollWidgetLayout.setContentsMargins(0,0,0,0)
         self.scrollWidgetLayout.setSpacing(0)
         self.scrollWidgetLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
+        self.scrollWidgetLayout.addWidget(self.tagsWidget)
         self.exportWidgetLayout.addWidget(self.combox_res)
         self.exportWidgetLayout.addWidget(self.button_export)
         self.exportWidgetLayout.setContentsMargins(0,10,0,10)
@@ -190,33 +190,34 @@ class InfoPanel(QFrame,Translator):
         self.titelWidget.setObjectName("InfoPanelTitleWidget")
         self.titelWidgetLayout.addWidget(self.titleLabel)
         self.titelWidgetLayout.addWidget(self.typeLabel)
-        self.titelWidgetLayout.addWidget(self.categoryLabel)
-        self.titelWidgetLayout.addWidget(self.subCategoryLabel)
 
         self.button_export.clicked.connect(lambda:self.onExportClicked.emit())
 
         self.titleLabel.setObjectName("titleLabel")
         self.typeLabel.setObjectName("typeLabel")
-        self.categoryLabel.setObjectName("categoryLabel")
-        self.subCategoryLabel.setObjectName("subCategoryLabel")
+
 
         self.tagsWidget.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
         self.tagsWidget.setObjectName("TagWidget")
 
-    def setPanelInfo(self,imagePath:str,name:str,type:str,category:str,subCategory:str):
+    def setPanelInfo(self,imagePath:str,name:str,type:str,tags:list[str]):
         self.titleImage.setImgae(imagePath)
         self.titleLabel.setText(name)
         self.typeLabel.setText(type)
-        self.categoryLabel.setText(category)
-        self.subCategoryLabel.setText(subCategory)
-
-        pass
+        for i in range(self.tagsFlowLayout.count()):
+            self.tagsFlowLayout.itemAt(i).widget().close()
+        self.tagsFlowLayout.removeAllWidgets()
+        for tag in tags:
+            button = StringButton(tag)
+            button.onClicked.connect(self.tagClicked)
+            self.tagsFlowLayout.addWidget(button)
+    def tagClicked(self,text):
+        self.onTagClicked.emit(text)
     def __loadConfig(self):
         self.combox_res.setCurrentIndex(Config.Get().exportTextureSizeIndex)
     def __saveConfig(self,index):
         Config.Get().exportTextureSizeIndex = index
         Config.Get().saveConfig()
-
 
         
 class ItemHeader(QFrame):
@@ -266,6 +267,14 @@ class FlowWidget(QWidget):
         if a0.button() == 1:
             self.RightMouseclicked.emit()
 
+
+class MySmoothScrollArea(SmoothScrollArea):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+    def SetValueToCurrentSelected(self,index:int):
+        
+        pass
+
 class ItemCardView(QWidget,Translator):
     def __init__(self,parent=None):
         super().__init__(parent=parent)
@@ -282,9 +291,8 @@ class ItemCardView(QWidget,Translator):
         self.viewLayout = QHBoxLayout(self.view)
 
 
-        self.scrollArea = SmoothScrollArea(self.view)
+        self.scrollArea = MySmoothScrollArea(self.view)
         self.infoPanel = InfoPanel(self)
-
         self.flowWidget = FlowWidget(self.scrollArea)
         self.flowLayout = FlowLayout(self.flowWidget,False,True)
         self.LoadCardCountPerTimes = 36
@@ -294,7 +302,6 @@ class ItemCardView(QWidget,Translator):
 
 
         self.loadItems()
-
     def __initWidget(self):
         self.view.setObjectName("ItemView")
         self.rootLayout.addWidget(self.view)
@@ -336,8 +343,9 @@ class ItemCardView(QWidget,Translator):
         for card in self.cards:
             card.setSize(size)
     def setSelectedItem(self,index:int):
+        Log(f"设置当前选中的索引为{index}","HomePage")
         #清除当前选择的项目
-        if len(self.cards) > 0:
+        if len(self.cards) > 0 and self.currentSelectedIndex < len(self.cards):
             self.cards[self.currentSelectedIndex].setSelected(False)
         self.infoPanel.close()
         #如果输入的索引大于0,表示选中了有效的项目,否则说明只是清空项目
@@ -348,10 +356,10 @@ class ItemCardView(QWidget,Translator):
                 libraryAssetData["previewFile"],
                 libraryAssetData["name"],
                 self.tra(libraryAssetData["type"]),
-                self.tra(libraryAssetData["category"]),
-                self.tra(libraryAssetData["subcategory"])
+                libraryAssetData["tags"]
                 )
             self.infoPanel.show()
+            self.scrollArea.SetValueToCurrentSelected(self.currentSelectedIndex)
         self.currentSelectedIndex = index
     def clearAllCards(self):
         self.flowLayout.removeAllWidgets()
@@ -472,11 +480,13 @@ class HomeInterface(QWidget):
         self.rootLayout.addWidget(self.item_card_view)
         self.rootLayout.setContentsMargins(0,0,0,0)
 
-
     def __initConnection(self):
         self.item_header.searchSignal.connect(self.item_card_view.searchAssets)
         self.item_header.clearSignal.connect(self.item_card_view.clearSearch)
-        pass
+        self.item_card_view.infoPanel.onTagClicked.connect(self.setSearchText)
+    def setSearchText(self,text):
+        self.item_header.searchBar.setText(text)
+        self.item_card_view.searchAssets(text)
     def __setQss(self):
         StyleSheet.HOME_INTERFACE.apply(self)
 

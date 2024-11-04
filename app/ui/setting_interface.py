@@ -1,26 +1,19 @@
-from qfluentwidgets import (NavigationItemPosition,FluentWindow,SubtitleLabel,setFont,SplitFluentWindow,setTheme,
-                            Theme,FlowLayout,PushButton,SmoothScrollArea,applyThemeColor,SearchLineEdit,
-                            ComboBox,NavigationTreeWidget,TitleLabel,
+from qfluentwidgets import (PrimaryPushSettingCard,TitleLabel,
                             PushSettingCard,SettingCardGroup,SettingCard,
                             LineEdit,InfoBar,InfoBarPosition)
 from qfluentwidgets import FluentIcon as FIF
 
-
-from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
-                             QFrame,QHBoxLayout,QVBoxLayout,
-                             QAction,QFileDialog)
-from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
-                         QBrush,QPainter,QImage,QPixmap,QColor, 
-                         QResizeEvent)
-from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,QStandardPaths,pyqtSignal
+from PyQt5.QtWidgets import (QWidget,QFileDialog,QVBoxLayout)
+from PyQt5.QtGui import (QIcon)
+from PyQt5.QtCore import Qt,pyqtSignal
 from qfluentwidgets.common.icon import FluentIconBase
 from app.core.style_sheet import StyleSheet
 
-import os
 
-from app.core.Log import log
+from app.core.Log import Log
 from app.core.config import Config
 from app.core.translator import Translator
+import app.core.utility as ut
 
 class LineEditSettingCard(SettingCard):
     editingFinished = pyqtSignal(str)
@@ -60,6 +53,23 @@ class SettingInterface(QWidget,Translator):
             Config.Get().remoteAssetLibraryFolder,
             group_path_settings
         )
+
+        version = ""
+        exePath = ut.GetExePath()
+        if exePath:
+            version = ut.getExeVersion(exePath)
+
+        self.aboutGroup = SettingCardGroup("关于", self)
+        self.aboutCard = PrimaryPushSettingCard(
+            self.tr(''),
+            FIF.INFO,
+            self.tr('About'),
+            '© ' + self.tr('Copyright') + f"  2024,ZCX. " +
+            self.tr('Version') + " " + version,
+            self.aboutGroup
+        )
+        self.aboutCard.button.setHidden(True)
+        self.aboutGroup.addSettingCard(self.aboutCard)
         self.card_remote_library_path.clicked.connect(self.__SeletLibraryFolder)
         
         group_path_settings.addSettingCard(self.card_remote_library_path)
@@ -88,6 +98,7 @@ class SettingInterface(QWidget,Translator):
         rootLayout.addWidget(label_Settings)
         rootLayout.addWidget(group_path_settings)
         rootLayout.addWidget(group_connect_settings)
+        rootLayout.addWidget(self.aboutGroup)
         rootLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         

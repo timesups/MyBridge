@@ -1,6 +1,12 @@
 import sys
+import datetime
 
-def log(message):
+
+def Log(message:str,module:str="Common"):
+    date = datetime.datetime.now()
+    print(f"[{date.year}.{date.month}.{date.day}-{date.hour}:{date.minute}:{date.second}]:{module}:{message}")
+    pass
+def DebugLog(message):
     message = str(message)
     message = getInfos(1) + "\n" + message
 
@@ -60,4 +66,4 @@ def getInfos(level):
 
 
 if __name__ == "__main__":
-    log("TEST")
+    Log(message="TEST")

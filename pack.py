@@ -1,7 +1,25 @@
 from PyInstaller.__main__ import run
+import os
+
+
+
 
 
 if __name__ == '__main__':
+    readme = os.path.join(os.path.dirname(__file__),"Readme.md")
+    versionInfo = os.path.join(os.path.dirname(__file__),"version_info.txt")
+    with open(readme,'r',encoding='utf-8') as f:
+        lines = f.readlines()
+    version = ""
+    for line in lines:
+        if line.startswith('## v'):
+            version = line.replace('## v',"")
+    version = version.replace('.',',').strip()
+    with open(versionInfo,'r',encoding='utf-8') as f:
+        info = f.read()
+    newInfo = info.replace('vsinfo',version)
+    with open(versionInfo,'w+',encoding='utf-8') as f:
+        f.write(newInfo)
     opts = [
         'main.py',
         '--windowed',  # GUI应用，不显示控制台
@@ -21,3 +39,5 @@ if __name__ == '__main__':
         '--clean',#清理打包过程的临时文件
     ]
     run(opts)
+    with open(versionInfo,'w+',encoding='utf-8') as f:
+        f.write(info)

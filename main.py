@@ -1,22 +1,20 @@
 
 # coding: utf-8
-from qfluentwidgets import NavigationItemPosition,FluentWindow,toggleTheme,SplashScreen,Dialog
+from qfluentwidgets import NavigationItemPosition,FluentWindow,toggleTheme,SplashScreen,Dialog,IndeterminateProgressRing
 from qfluentwidgets import FluentIcon as FIF
-from PyQt5.QtWidgets import QApplication,QAction
+from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
-from PyQt5.QtNetwork import QLocalSocket,QLocalServer
-import os
-
-import app.resource.resource_rc
 import sys
 
-from app.core.Log import log
-from app.core.config import calculate_md5
+import app.resource.resource_rc
+from app.core.Log import Log
 from app.ui.home_interface import HomeInterface
 from app.ui.setting_interface import SettingInterface
 from app.ui.import_interface import ImportInterface
 from app.core.translator import Translator
+import app.core.common_widgets as cw
+import app.core.utility as ut
 
 class MainWindow(FluentWindow,Translator):
     def __init__(self):
@@ -27,15 +25,10 @@ class MainWindow(FluentWindow,Translator):
         self.setMinimumSize(1200,400)
         self.resize(1200,800)
         self.__initWindow()
-
-
         self.splashScreen = SplashScreen(self.windowIcon(),self)
         self.splashScreen.setIconSize(QSize(102,102))
-
         self.show()
-
         self.__createSubInterface()
-
         self.splashScreen.finish()
 
     def __createSubInterface(self):
@@ -50,67 +43,36 @@ class MainWindow(FluentWindow,Translator):
         desktop = QApplication.desktop().availableGeometry()
         w, h = desktop.width(), desktop.height()
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
+    def setDownload(self):
+        pr = cw.TitleProgressRing(self,text="下载中...")
+        pr.move(self.width()//2-30,self.height()//2-30)
+        self.setEnabled(False)
+        pr.show()
     def closeEvent(self, e):
+        Log("主窗口已经关闭","Main")
         return super().closeEvent(e)
 
-def startServe():
-    serverName = "ServerForSingle"
-    socket = QLocalSocket()
-    socket.connectToServer(serverName)
-    if socket.waitForConnected(200):
-        return
-    else:
-        localServer = QLocalServer()
-        localServer.listen(serverName)
-    return localServer
 
-
-
-def startApp():
-    localServer = startServe()
+if __name__ == "__main__":
+    if ut.get_pid("MyBridge.exe"):
+        Log("已经存在运行的实例,本实例退出","Main")
+        sys.exit(-1)
     app = QApplication(sys.argv)
+    Log("app创建成功","Main")
     toggleTheme()
-    update = checkUpdate()
+    Log("检查更新","Main")
+    update = ut.checkUpdate()
     if update:
+        Log("用户确认更新,准备开始更新","Main")
         import subprocess
         subprocess.Popen([update])
     else:
+        Log("未检测到更新,启动窗口中","Main")
         window = MainWindow()
         window.show() 
-        localServer.close()
+        Log("程序启动完成","Main")
         sys.exit(app.exec_())
 
-def checkUpdate():
-    remoteFile = r"\\192.168.3.252\中影年年文化传媒有限公司\6动画基地\制作中心\地编组\Z_赵存喜\MyBirdge\update\MyBridge.exe"
-    current_exe_path = sys.executable if getattr(sys, 'frozen', False) else __file__
-    currentDir = os.path.dirname(current_exe_path)
-    updateExe = os.path.join(currentDir,"update.exe")
-    if os.path.exists(remoteFile) and os.path.exists(updateExe):
-        if calculate_md5(remoteFile) != calculate_md5(current_exe_path):
-            w = Dialog("提示","有新版本,是否更新")
-            w.setTitleBarVisible(False)
-            w.setContentCopyable(True)
-            if w.exec():
-                return updateExe
-    return False
-if __name__ == "__main__":
-    startApp()
-    # import os
-
-    # from app.core.bridge_type import bridgeToAsset
-    
-    # folder = r"O:\Shade\Quixel_Textures\Downloaded\surface"
-    # successfulAssetCount = 0
-    # allFolderCount = 0
-    # for path in os.listdir(folder):
-    #     rootFolder = os.path.join(folder,path)
-    #     asset = bridgeToAsset(rootFolder)
-    #     allFolderCount += 1
-    #     if asset:
-    #         successfulAssetCount += 1
-    # print(successfulAssetCount/allFolderCount)
-    # print(successfulAssetCount)
-    pass
 
 
 
