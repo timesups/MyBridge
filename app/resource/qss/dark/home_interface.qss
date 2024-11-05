@@ -2,7 +2,7 @@ ItemCard {
     background-color: rgb(30, 30, 30);
     border-radius: 8px;
     color: rgb(255, 255, 255);
-    font: 25px 'Segoe UI', 'PingFang SC';
+    font: 22px 'Segoe UI', 'PingFang SC';
 }
 ItemCard[isSelected=true]{
     border: 2px solid rgb(0, 174, 255);

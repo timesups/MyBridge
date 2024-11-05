@@ -5,7 +5,7 @@ from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import (QApplication,QWidget,
                              QFrame,QHBoxLayout,QVBoxLayout,QMenu,
                              QLabel,QSizePolicy)
-from PyQt5.QtGui import (QContextMenuEvent, QMouseEvent, QPaintEvent,
+from PyQt5.QtGui import (QCloseEvent, QContextMenuEvent, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QPixmap,QColor, 
                          QResizeEvent)
 from PyQt5.QtCore import QEvent, QRect,Qt,pyqtSignal,QThread
@@ -17,6 +17,8 @@ from app.core.style_sheet import StyleSheet
 from app.core.common_widgets import scalePixelMap,scaleMap,StringButton
 import app.core.utility as ut
 from app.core.config import Config
+from app.core.datebase import DataBaseLocal,DataBaseRemote
+
 from app.core.translator import Translator
 from app.core.icons import Icons
 
@@ -220,7 +222,7 @@ class InfoPanel(QFrame,Translator):
         Config.Get().saveConfig()
 
         
-class ItemHeader(QFrame):
+class ItemHeader(QFrame,Translator):
     searchSignal = pyqtSignal(str)
     clearSignal = pyqtSignal()
     def __init__(self,parent):
@@ -236,6 +238,11 @@ class ItemHeader(QFrame):
         self.comboxWidget = QWidget(self.headerWidget)
         self.comboxWidgetLayout = QHBoxLayout(self.comboxWidget)
 
+
+        self.combox_type = ComboBox(self)
+        self.combox_type.addItem("")
+        self.combox_type.addItems([self.tra(item.value) for item in list(ut.AssetType.__members__.values())])
+        self.combox_type.setFixedWidth(300)
         self.__initWidget()
     def __initWidget(self):
         self.rootLayout.addWidget(self.headerWidget)
@@ -245,6 +252,8 @@ class ItemHeader(QFrame):
         self.headerWidgetLayout.setContentsMargins(0,0,0,0)
 
         self.comboxWidgetLayout.setContentsMargins(0,0,0,0)
+        self.comboxWidgetLayout.addWidget(self.combox_type)
+        self.comboxWidgetLayout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.searchBar.searchSignal.connect(self.__search)
         self.searchBar.clearSignal.connect(self.__clear)
         self.searchBar.returnPressed.connect(lambda:self.__search(self.searchBar.text()))
@@ -303,6 +312,7 @@ class ItemCardView(QWidget,Translator):
 
         self.loadItems()
     def __initWidget(self):
+
         self.view.setObjectName("ItemView")
         self.rootLayout.addWidget(self.view)
         self.rootLayout.setContentsMargins(0,0,0,0)
@@ -385,7 +395,7 @@ class ItemCardView(QWidget,Translator):
                 self.filteredAssetDatas.append(data)
         self.loadItems()
     def loadItemFromDataBaseAndMakeItAbs(self):
-        datas = Config.Get().getAllAssets()
+        datas = DataBaseLocal.Get().getAllAssets()
         newDatas = []
         for data in datas:
             data["rootFolder"] = os.path.join(Config.Get().remoteAssetLibrary,data["rootFolder"])
@@ -398,6 +408,21 @@ class ItemCardView(QWidget,Translator):
         self.currentLoadedCardCount = 0
         self.filteredAssetDatas = self.loadItemFromDataBaseAndMakeItAbs()
         self.loadItems()
+    def filterByType(self,index):
+        index -= 1
+        if index >= 0:
+            type = list(ut.AssetType.__members__.values())[index]
+            self.clearAllCards()
+            self.currentLoadedCardCount = 0
+            datas = self.loadItemFromDataBaseAndMakeItAbs()
+            self.filteredAssetDatas = []
+            for data in datas:
+                if type.value == data["type"]:
+                    self.filteredAssetDatas.append(data)
+            self.loadItems()
+            pass
+        else:
+            self.clearSearch()
     def reloadItems(self):
         self.clearAllCards()
         self.currentLoadedCardCount = 0
@@ -424,7 +449,9 @@ class ItemCardView(QWidget,Translator):
         w.setContentCopyable(True)
         if w.exec():
             ut.removeFolder(libraryAssetData["rootFolder"])
-            Config.Get().deleteAssetFromDB(libraryAssetData["AssetID"])
+            DataBaseRemote.Get().UseDataBase()
+            DataBaseRemote.Get().deleteAssetFromDB(libraryAssetData["AssetID"])
+            DataBaseRemote.Get().releaseDataBase()
             self.reloadItems()
     def exportToUnreal(self):
         if ut.sendAssetToUE(self.filteredAssetDatas[self.currentSelectedIndex],Config.Get().getSendSocketAddress(),self.infoPanel.combox_res.currentIndex()):
@@ -463,6 +490,10 @@ class ItemCardView(QWidget,Translator):
     def paintEvent(self, a0: QPaintEvent | None) -> None:
         self.resizeItemCards()
         return super().paintEvent(a0)
+    def closeEvent(self, a0: QCloseEvent | None) -> None:
+        return super().closeEvent(a0)
+    
+
 
 class HomeInterface(QWidget):
     def __init__(self,parent=None):
@@ -483,6 +514,7 @@ class HomeInterface(QWidget):
     def __initConnection(self):
         self.item_header.searchSignal.connect(self.item_card_view.searchAssets)
         self.item_header.clearSignal.connect(self.item_card_view.clearSearch)
+        self.item_header.combox_type.currentIndexChanged.connect(self.item_card_view.filterByType)
         self.item_card_view.infoPanel.onTagClicked.connect(self.setSearchText)
     def setSearchText(self,text):
         self.item_header.searchBar.setText(text)

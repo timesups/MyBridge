@@ -20,6 +20,7 @@ import zipfile
 
 
 from app.core.config import Config
+from app.core.datebase import DataBaseRemote,DataBaseLocal
 
 UPDATE_SERVE_PATH = r"\\192.168.3.252\中影年年文化传媒有限公司\6动画基地\制作中心\地编组\Z_赵存喜\MyBirdge\update"
 
@@ -581,7 +582,7 @@ def MakeAndCopyAsset(datas:dict)->Asset:
     return CopyAndRenameAsset(asset)
 
 def CopyAndRenameAsset(asset:Asset):
-    
+    DataBaseRemote.Get().UseDataBase()
     # 计算资产ID
     asset.AssetID = generate_unique_string(7)
     # 创建资产根目录
@@ -590,8 +591,9 @@ def CopyAndRenameAsset(asset:Asset):
     if not os.path.exists(rootFolder):
         os.makedirs(rootFolder)
     
+
     # 获取资产编号
-    asset.AssetIndex = Config.Get().getRemoteDataBaseAssetsCount()
+    asset.AssetIndex = DataBaseRemote.Get().DataBaseAssetCount()
 
     if asset.type == AssetType.Assets3D or asset.type == AssetType.Plant:
         for i in range(len(asset.Lods)):
@@ -617,6 +619,7 @@ def CopyAndRenameAsset(asset:Asset):
     asset.JsonUri = os.path.basename(JsonUri_abs)
     with open(JsonUri_abs,'w+',encoding='utf-8') as f:
         f.write(json.dumps(asset.to_dict()))
+    DataBaseRemote.Get().releaseDataBase()
     return asset
 
 def generate_random_string(length=10):
@@ -628,7 +631,7 @@ def generate_random_string(length=10):
 def generate_unique_string(length=10):
     while(1):
         random_string = generate_random_string(length)
-        if not Config.Get().isIDinDB(random_string):
+        if not DataBaseRemote.Get().isAssetInDB(random_string):
             return random_string
         
 
@@ -681,17 +684,23 @@ def GenARMMap(ao:str,roughness:str,metallic:str,assetID:str,opacity:str,Transluc
     armUri = os.path.join(dirName,f"{assetID}_ARM{extension}")
     if os.path.exists(armUri):
         return armUri
-    if ao:
-        aoImage = readImage(ao).convert("L")
+    
     if roughness:
         rouImage = readImage(roughness).convert("L")
-    if metallic:
-        metaImage = readImage(metallic).convert("L")
     if opacity:
         opacityImage = readImage(opacity).convert("L")
     if Translucency:
         translucencyImage = readImage(Translucency).convert("L")
-    
+
+    if ao:
+        aoImage = readImage(ao).convert("L")
+    else:
+        aoImage = Image.new("L",rouImage.size,255)
+    if metallic:
+        metaImage = readImage(metallic).convert("L")
+    else:
+        metaImage = Image.new("L",rouImage.size,0)
+
     if type == AssetType.Assets3D or type == AssetType.Surface:
         r,g,b = aoImage.split()[0],rouImage.split()[0],metaImage.split()[0]
         armImage = Image.merge("RGB",(r,g,b))
@@ -770,22 +779,16 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int):
                 Translucency = mapUri
             else:
                 pass
-        if asset.type == AssetType.Assets3D:
-            if not (Ao and Roughness and BaseColor and Normal and Metallic):
-                return
-            armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,Opacity,Translucency,extension,asset.type)
-        elif asset.type == AssetType.Surface:
-            if not (Ao and Roughness and BaseColor and Normal and Metallic):
-                return
-            armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,Opacity,Translucency,extension,asset.type)
-        elif asset.type == AssetType.Decal:
-            if not (Ao and Roughness and BaseColor and Normal and Metallic and Opacity):
-                return
-            armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,Opacity,Translucency,extension,asset.type)
-        elif asset.type == AssetType.Plant:
-            if not (Ao and Roughness and BaseColor and Normal and Opacity and Translucency):
-                return
-            armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,Opacity,Translucency,extension,asset.type)
+        
+        if not (Roughness and BaseColor and Normal):
+            return False
+        elif asset.type == AssetType.Decal and not Opacity:
+            return False
+        elif asset.type == AssetType.Plant and not(Opacity and Translucency):
+            return False
+        armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,Opacity,Translucency,extension,asset.type)
+        if not armUri:
+            return False
     elif asset.assetFormat == AssetFormat.UnrealEngine:
         pass
     message = dict(

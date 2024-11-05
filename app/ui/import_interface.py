@@ -22,6 +22,7 @@ import app.core.utility as ut
 from app.core.style_sheet import StyleSheet
 from app.core.translator import Translator
 from app.core.config import Config
+from app.core.datebase import DataBaseRemote
 from app.core.common_widgets import scaleMap
 import app.core.common_widgets as common
 from app.core.Log import Log
@@ -203,8 +204,10 @@ class MakeAssetWorker(QThread):
             rootFolder  = asset.rootFolder,
             )
         while True:
-            if not Config.Get().isRemoteDataBaseInUsed():
-                Config.Get().addAssetToDB(assetToLibraryData)
+            if not DataBaseRemote.Get().isRemoteDataBaseInUsed():
+                DataBaseRemote.Get().UseDataBase()
+                DataBaseRemote.Get().addAssetToDB(assetToLibraryData)
+                DataBaseRemote.Get().releaseDataBase()
                 self.onFinished.emit()
                 break
             else:

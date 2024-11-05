@@ -1,19 +1,17 @@
 
 # coding: utf-8
-from qfluentwidgets import NavigationItemPosition,FluentWindow,toggleTheme,SplashScreen,Dialog,IndeterminateProgressRing
+from qfluentwidgets import NavigationItemPosition,FluentWindow,toggleTheme,SplashScreen
 from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
 import sys
-
 import app.resource.resource_rc
 from app.core.Log import Log
 from app.ui.home_interface import HomeInterface
 from app.ui.setting_interface import SettingInterface
 from app.ui.import_interface import ImportInterface
 from app.core.translator import Translator
-import app.core.common_widgets as cw
 import app.core.utility as ut
 
 class MainWindow(FluentWindow,Translator):
@@ -30,7 +28,6 @@ class MainWindow(FluentWindow,Translator):
         self.show()
         self.__createSubInterface()
         self.splashScreen.finish()
-
     def __createSubInterface(self):
         self.homeInterface = HomeInterface(self)
         self.SettingInterface = SettingInterface(self)
@@ -43,15 +40,9 @@ class MainWindow(FluentWindow,Translator):
         desktop = QApplication.desktop().availableGeometry()
         w, h = desktop.width(), desktop.height()
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
-    def setDownload(self):
-        pr = cw.TitleProgressRing(self,text="下载中...")
-        pr.move(self.width()//2-30,self.height()//2-30)
-        self.setEnabled(False)
-        pr.show()
     def closeEvent(self, e):
         Log("主窗口已经关闭","Main")
         return super().closeEvent(e)
-
 
 if __name__ == "__main__":
     if ut.get_pid("MyBridge.exe"):
