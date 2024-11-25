@@ -1,5 +1,6 @@
 # MyBridge 资产库更新日志
-
+python版本:3.10.9
+使用requirements.txt安装依赖
 ## v0.0.0.0.1
 - 完成基本功能
 ## v0.0.0.0.2
