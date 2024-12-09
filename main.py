@@ -60,7 +60,7 @@ if __name__ == "__main__":
     else:
         Log("未检测到更新,启动窗口中","Main")
         window = MainWindow()
-        window.show() 
+        window.show()
         Log("程序启动完成","Main")
         sys.exit(app.exec_())
 

@@ -13,11 +13,12 @@ from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
                          QResizeEvent,QPalette)
 from PyQt5.QtCore import QObject, QSize,pyqtSignal
 from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,QThread
-import time
+import functools
 import os
 
 
-from app.core.utility import AssetCategory,AssetSize,AssetSubccategory,AssetType,ClassifyFilesFormFolder,MakeAndCopyAsset
+from app.core.utility import category,GetCategorys,GetParentsCategory,AssetSize,AssetType,ClassifyFilesFormFolder,MakeAssetByData
+
 import app.core.utility as ut
 from app.core.style_sheet import StyleSheet
 from app.core.translator import Translator
@@ -178,42 +179,7 @@ class TabBarButton(QWidget):
     def setText(self,text:str):
         self.label.setText(text)
 
-class MakeAssetWorker(QThread):
-    onFinished = pyqtSignal()
-    onRemoteDatabaseIsUsed = pyqtSignal()
-    onRemoteDatabaseIsUsedCountDone = pyqtSignal()
-    def __init__(self, assetData,parent: QObject | None = ...) -> None:
-        super().__init__(parent)
-        self.assetdata = assetData
-    def run(self) -> None:
-        asset = MakeAndCopyAsset(self.assetdata)
-        #将资产添加到资产数据库中
-        assetToLibraryData = dict(
-            name        = asset.name,
-            AssetID     = asset.AssetID,
-            jsonUri     = asset.JsonUri,
-            TilesH      = asset.TilesH,
-            Tilesv      = asset.TilesV,
-            asset       = asset.assetFormat.value,
-            category    = asset.category.value,
-            subcategory = asset.subcategory.value,
-            surfaceSize = asset.surfaceSize.value,
-            tags        = asset.tags,
-            type        = asset.type.value,
-            previewFile = asset.previewFile[0],
-            rootFolder  = asset.rootFolder,
-            )
-        while True:
-            if not DataBaseRemote.Get().isRemoteDataBaseInUsed():
-                DataBaseRemote.Get().UseDataBase()
-                DataBaseRemote.Get().addAssetToDB(assetToLibraryData)
-                DataBaseRemote.Get().releaseDataBase()
-                self.onFinished.emit()
-                break
-            else:
-                self.onRemoteDatabaseIsUsed.emit()
-                time.sleep(5)
-                self.onRemoteDatabaseIsUsedCountDone.emit()
+
 
 class ImportSettings(QWidget,Translator):
     startImported = pyqtSignal()
@@ -395,8 +361,8 @@ class ImportSettings(QWidget,Translator):
         self.widgetCategorysLayout.addWidget(self.combox_subcategory)
         self.widgetCategorysLayout.setContentsMargins(0,0,0,0)
 
-        self.combox_category.addItems([self.tra(item.value) for item in list(AssetCategory.__members__.values())])
-        self.combox_subcategory.addItems([self.tra(item.value) for item in list(AssetSubccategory.__members__.values())])
+        self.combox_category.addItems(GetCategorys(0))
+        self.combox_subcategory.addItems(GetCategorys(1))
        
 
         self.widgetSizeLayout.addWidget(self.combox_SurfaceSize)
@@ -473,12 +439,9 @@ class ImportSettings(QWidget,Translator):
         currentIndex = self.combox_type.combox.currentIndex() 
         type = list(AssetType.__members__.values())[currentIndex].value
 
-        currentIndex = self.combox_category.combox.currentIndex()
-        category = list(AssetCategory.__members__.values())[currentIndex].value
+        category = self.combox_category.combox.currentText()
 
-
-        currentIndex = self.combox_subcategory.combox.currentIndex()
-        subCategory = list(AssetSubccategory.__members__.values())[currentIndex].value
+        subCategory = self.combox_subcategory.combox.currentText()
 
         currentIndex = self.combox_SurfaceSize.combox.currentIndex()
         surfaceSize = list(AssetSize.__members__.values())[currentIndex].value
@@ -598,10 +561,13 @@ class ImportSettings(QWidget,Translator):
             previewImage = previewImage,
         )
         self.startImported.emit()
-        makeAssetWorker = MakeAssetWorker(assetData,self)
+        makeAssetWorker = ut.CustomWorker(functools.partial(self.MakeAndCopyAsset,assetData),self)
         makeAssetWorker.onFinished.connect(self.importFinished)
         makeAssetWorker.start()
         self.setEnabled(False)
+    def MakeAndCopyAsset(self,assetData):
+        asset = ut.CopyAndRenameAsset(ut.MakeAssetByData(assetData))
+        ut.AddAssetDataToDataBase(asset)
     def showDialog(self,title,content):
         w = Dialog(title,content)
         w.setTitleBarVisible(False)

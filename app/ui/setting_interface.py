@@ -7,9 +7,10 @@ from PyQt5.QtWidgets import (QWidget,QFileDialog,QVBoxLayout)
 from PyQt5.QtGui import (QIcon)
 from PyQt5.QtCore import Qt,pyqtSignal
 from qfluentwidgets.common.icon import FluentIconBase
-from app.core.style_sheet import StyleSheet
+import functools
 
 
+import app.core.ImportBridgeAsset as ib
 from app.core.Log import Log
 from app.core.config import Config
 from app.core.translator import Translator
@@ -95,6 +96,8 @@ class SettingInterface(QWidget,Translator):
         group_connect_settings.addSettingCard(card_connect_port)
 
 
+
+
         rootLayout.addWidget(label_Settings)
         rootLayout.addWidget(group_path_settings)
         rootLayout.addWidget(group_connect_settings)
@@ -106,6 +109,7 @@ class SettingInterface(QWidget,Translator):
         rootLayout.setContentsMargins(50,30,50,30)
         rootLayout.setSpacing(0)
         self.setObjectName("setting_interface")
+
     def __SeletLibraryFolder(self):
         folder = QFileDialog.getExistingDirectory(
             self, self.tra("Choose folder"), "./")

@@ -300,7 +300,8 @@ dictionary = {
 "Decal" : "贴花",
 "Plant" : "植物",
 "3D Assets":"3D 资产",
-"Surface":"表面"
+"Surface":"表面",
+"brush" : "笔刷",
 }
 class Translator:
     def tra(self,text:str):

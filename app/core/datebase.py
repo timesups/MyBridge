@@ -55,6 +55,10 @@ class DataBase():
         return result
     def getAllAssets(self):
         return self.dataBase.all()
+    def Update(self,assetID:str,data:dict):
+        user = Query()
+
+        self.dataBase.update(dict,user.AssetID==assetID)
     
 class DataBaseLocal(DataBase):
     instance = None
@@ -75,6 +79,11 @@ class DataBaseLocal(DataBase):
                     break
                 else:
                     time.sleep(1)
+        else:
+            os.remove(self.dataBasePath)
+            DataBaseRemote().Get().UseDataBase()
+            DataBaseRemote().Get().releaseDataBase()
+
     @classmethod
     def Get(cls):
         if not cls.instance:

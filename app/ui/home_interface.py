@@ -1,20 +1,19 @@
 from qfluentwidgets import (FlowLayout,PushButton,
                             SmoothScrollArea,SearchLineEdit,
                             ComboBox,InfoBar,InfoBarPosition,Dialog)
-from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import (QApplication,QWidget,
                              QFrame,QHBoxLayout,QVBoxLayout,QMenu,
                              QLabel,QSizePolicy)
 from PyQt5.QtGui import (QCloseEvent, QContextMenuEvent, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QPixmap,QColor, 
-                         QResizeEvent)
+                         QResizeEvent,QTransform)
 from PyQt5.QtCore import QEvent, QRect,Qt,pyqtSignal,QThread
 
 import os
 
 from app.core.Log import Log
 from app.core.style_sheet import StyleSheet
-from app.core.common_widgets import scalePixelMap,scaleMap,StringButton
+from app.core.common_widgets import scalePixelMap,scaleMap,StringButton,LoadPixmapSafely
 import app.core.utility as ut
 from app.core.config import Config
 from app.core.datebase import DataBaseLocal,DataBaseRemote
@@ -42,7 +41,7 @@ class ItemCard(QFrame):
     def __init__(self,parent,index:int,imagePath:str,name:str,size:int=250):
         super().__init__(parent=parent)
         self.setFixedSize(size,size)
-        self.item_pixel_map = QPixmap(imagePath)
+        self.item_pixel_map = LoadPixmapSafely(imagePath)
         self.item_name = name
         self.__textPaddingX = 5
         self.__textPaddingY = 5
@@ -92,13 +91,12 @@ class ItemCard(QFrame):
         return super().resizeEvent(a0)
     def paintEvent(self, e: QPaintEvent | None) -> None:
         painter = QPainter(self)
-        rect  = QRect(self.imageMargin,self.imageMargin,painter.device().width()-2*self.imageMargin,painter.device().height()-2*self.imageMargin)
+        rect_tar  = QRect(self.imageMargin,self.imageMargin,self.width()-2*self.imageMargin,self.height()-2*self.imageMargin)
         if not self.worker.isRunning() and self.worker.image != None:
-            brush = QBrush()
-            brush.setTexture(self.worker.image)
-            painter.fillRect(rect,brush)
+            rect_src  =  QRect(0,0, self.worker.image.width(),self.worker.image.height())
+            painter.drawPixmap(rect_tar,self.worker.image,rect_src)
         else:
-            painter.fillRect(rect,QColor(34,34,34)) 
+            painter.fillRect(rect_tar,QColor(34,34,34)) 
         if self.isHove and self.isEnabled():
             painter.drawText(0+self.__textPaddingX,self.height()-self.__textPaddingY,f"{self.item_name}")
         painter.end()
@@ -153,6 +151,9 @@ class InfoPanel(QFrame,Translator):
         self.typeLabel = QLabel(self.titelWidget,text="typeLabel")
 
 
+        self.CategoryLabel = QLabel(self.titelWidget,text="CategoryLabel")
+
+
         self.tagsWidget = QWidget(self.titelWidget)
         self.tagsFlowLayout = FlowLayout(self.tagsWidget,False)
         self.tagsFlowLayout .setContentsMargins(10,10,10,10)
@@ -167,6 +168,12 @@ class InfoPanel(QFrame,Translator):
         self.combox_res = ComboBox(parent=self.exportWidget)
         self.combox_res.addItems([item.value for item in list(ut.TextureSize.__members__.values())])
         self.combox_res.currentIndexChanged.connect(self.__saveConfig)
+
+
+        self.combox_lod = ComboBox(parent=self.exportWidget)
+
+        self.combox_lod.currentIndexChanged.connect(self.__saveConfig)
+
         self.__initWidget()
         self.__loadConfig()
     def __initWidget(self):
@@ -186,26 +193,31 @@ class InfoPanel(QFrame,Translator):
         self.scrollWidgetLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.scrollWidgetLayout.addWidget(self.tagsWidget)
         self.exportWidgetLayout.addWidget(self.combox_res)
+        self.exportWidgetLayout.addWidget(self.combox_lod)
         self.exportWidgetLayout.addWidget(self.button_export)
         self.exportWidgetLayout.setContentsMargins(0,10,0,10)
 
         self.titelWidget.setObjectName("InfoPanelTitleWidget")
         self.titelWidgetLayout.addWidget(self.titleLabel)
         self.titelWidgetLayout.addWidget(self.typeLabel)
+        self.titelWidgetLayout.addWidget(self.CategoryLabel)
 
         self.button_export.clicked.connect(lambda:self.onExportClicked.emit())
 
         self.titleLabel.setObjectName("titleLabel")
         self.typeLabel.setObjectName("typeLabel")
+        self.CategoryLabel.setObjectName("typeLabel")
 
 
         self.tagsWidget.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
         self.tagsWidget.setObjectName("TagWidget")
 
-    def setPanelInfo(self,imagePath:str,name:str,type:str,tags:list[str]):
+    def setPanelInfo(self,imagePath:str,name:str,type:str,tags:list[str],category,subcategory,lods:list[int]=[]):
         self.titleImage.setImgae(imagePath)
         self.titleLabel.setText(name)
         self.typeLabel.setText(type)
+
+        self.CategoryLabel.setText(f"{category}|{subcategory}")
         for i in range(self.tagsFlowLayout.count()):
             self.tagsFlowLayout.itemAt(i).widget().close()
         self.tagsFlowLayout.removeAllWidgets()
@@ -213,14 +225,22 @@ class InfoPanel(QFrame,Translator):
             button = StringButton(tag)
             button.onClicked.connect(self.tagClicked)
             self.tagsFlowLayout.addWidget(button)
+        self.combox_lod.clear()
+        self.combox_lod.addItem(f"original")
+        for lod in lods:
+            self.combox_lod.addItem(f"Lod{lod}")
     def tagClicked(self,text):
         self.onTagClicked.emit(text)
     def __loadConfig(self):
         self.combox_res.setCurrentIndex(Config.Get().exportTextureSizeIndex)
+        try:
+            self.combox_lod.setCurrentIndex(Config.Get().exportLodIndex)
+        except:
+            pass
     def __saveConfig(self,index):
-        Config.Get().exportTextureSizeIndex = index
+        Config.Get().exportTextureSizeIndex = self.combox_res.currentIndex()
+        Config.Get().exportLodIndex = self.combox_lod.currentIndex()
         Config.Get().saveConfig()
-
         
 class ItemHeader(QFrame,Translator):
     searchSignal = pyqtSignal(str)
@@ -366,7 +386,10 @@ class ItemCardView(QWidget,Translator):
                 libraryAssetData["previewFile"],
                 libraryAssetData["name"],
                 self.tra(libraryAssetData["type"]),
-                libraryAssetData["tags"]
+                libraryAssetData["tags"],
+                libraryAssetData["category"],
+                libraryAssetData["subcategory"],
+                libraryAssetData["lods"]
                 )
             self.infoPanel.show()
             self.scrollArea.SetValueToCurrentSelected(self.currentSelectedIndex)
@@ -454,7 +477,11 @@ class ItemCardView(QWidget,Translator):
             DataBaseRemote.Get().releaseDataBase()
             self.reloadItems()
     def exportToUnreal(self):
-        if ut.sendAssetToUE(self.filteredAssetDatas[self.currentSelectedIndex],Config.Get().getSendSocketAddress(),self.infoPanel.combox_res.currentIndex()):
+        if ut.sendAssetToUE(
+            self.filteredAssetDatas[self.currentSelectedIndex],
+            Config.Get().getSendSocketAddress(),
+            self.infoPanel.combox_res.currentIndex(),
+            self.infoPanel.combox_lod.currentText()):
             InfoBar.success(
                 title=self.tra('Notice:'),
                 content=self.tra("Export successful"),

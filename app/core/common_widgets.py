@@ -11,6 +11,11 @@ from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
 from PyQt5.QtCore import QObject, QRect,Qt,QPoint,QEasingCurve,pyqtSignal,QThread
 
 
+import sys
+
+def LoadPixmapSafely(path):
+    pixmap = QPixmap(path)
+    return(pixmap)
 
 class QLine(QFrame):
     def __init__(self,parent=None):
@@ -78,7 +83,6 @@ def scalePixelMap(width:int,height:int,original_pixelmap:QPixmap)-> QPixmap:
     painter.drawPixmap(QRect(int(x), int(y), scaled_size.width(), scaled_size.height()), original_pixelmap)
 
     painter.end()
-
     return scaled_pixmap
 
 def showDialog(title,content):

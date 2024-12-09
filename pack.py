@@ -4,7 +4,6 @@ import os
 
 
 
-
 if __name__ == '__main__':
     readme = os.path.join(os.path.dirname(__file__),"Readme.md")
     versionInfo = os.path.join(os.path.dirname(__file__),"version_info.txt")
