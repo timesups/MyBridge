@@ -8,6 +8,7 @@ from PyQt5.QtGui import (QCloseEvent, QContextMenuEvent, QMouseEvent, QPaintEven
                          QBrush,QPainter,QPixmap,QColor, 
                          QResizeEvent,QTransform)
 from PyQt5.QtCore import QEvent, QRect,Qt,pyqtSignal,QThread
+import pyperclip
 
 import os
 
@@ -38,7 +39,7 @@ class ItemCard(QFrame):
     clicked = pyqtSignal(int)
     goToFile = pyqtSignal(int)
     deleteItem = pyqtSignal(int)
-    def __init__(self,parent,index:int,imagePath:str,name:str,size:int=250):
+    def __init__(self,parent,index:int,imagePath:str,name:str,assetid:str,size:int=250):
         super().__init__(parent=parent)
         self.setFixedSize(size,size)
         self.item_pixel_map = LoadPixmapSafely(imagePath)
@@ -52,6 +53,7 @@ class ItemCard(QFrame):
         self.worker = ImageScaleWorker(self)
         self.isFavorite = False
         self.heartPixmap = Icons.get().heart
+        self.assetid = assetid
     def setSize(self,size:int):
         self.resize(size,size)
         self.setFixedSize(size,size)
@@ -63,11 +65,16 @@ class ItemCard(QFrame):
         self.setStyle(QApplication.style())
     def contextMenuEvent(self, a0: QContextMenuEvent | None) -> None:
         menu = ItemCardContextMenu(self)
-        actionGoToFile = menu.addAction("打开文件夹")
-        actionGoToFile.triggered.connect(lambda :self.goToFile.emit(self.index))
+        action = menu.addAction("复制资产ID")
+        action.triggered.connect(lambda :pyperclip.copy(self.assetid))
 
-        actionDelete = menu.addAction("删除资产")
-        actionDelete.triggered.connect(lambda :self.deleteItem.emit(self.index))
+        action = menu.addAction("打开文件夹")
+        action.triggered.connect(lambda :self.goToFile.emit(self.index))
+
+        action = menu.addAction("删除资产")
+        action.triggered.connect(lambda :self.deleteItem.emit(self.index))
+
+
         menu.move(a0.globalPos())
         menu.show()
         pass
@@ -260,9 +267,23 @@ class ItemHeader(QFrame,Translator):
 
 
         self.combox_type = ComboBox(self)
-        self.combox_type.addItem("")
+        self.combox_type.addItem("请选择资产类型")
         self.combox_type.addItems([self.tra(item.value) for item in list(ut.AssetType.__members__.values())])
-        self.combox_type.setFixedWidth(300)
+        self.combox_type.setFixedWidth(200)
+
+
+        self.combox_category = ComboBox(self)
+        self.combox_category.addItem("请选择资产主分类")
+        self.combox_category.addItems(ut.GetCategorys(0))
+        self.combox_category.setFixedWidth(200)
+
+
+        self.combox_subcategory = ComboBox(self)
+        self.combox_subcategory.addItem("请选择资产次级分类")
+        self.combox_subcategory.addItems(ut.GetCategorys(1))
+        self.combox_subcategory.setFixedWidth(200)
+
+
         self.__initWidget()
     def __initWidget(self):
         self.rootLayout.addWidget(self.headerWidget)
@@ -273,6 +294,8 @@ class ItemHeader(QFrame,Translator):
 
         self.comboxWidgetLayout.setContentsMargins(0,0,0,0)
         self.comboxWidgetLayout.addWidget(self.combox_type)
+        self.comboxWidgetLayout.addWidget(self.combox_category)
+        self.comboxWidgetLayout.addWidget(self.combox_subcategory)
         self.comboxWidgetLayout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.searchBar.searchSignal.connect(self.__search)
         self.searchBar.clearSignal.connect(self.__clear)
@@ -403,7 +426,7 @@ class ItemCardView(QWidget,Translator):
     def loadItems(self):
         for i in range(self.currentLoadedCardCount,self.currentLoadedCardCount+self.LoadCardCountPerTimes):
             if i < len(self.filteredAssetDatas):
-                self.addItemCard(self.filteredAssetDatas[i]["previewFile"],self.filteredAssetDatas[i]["name"])
+                self.addItemCard(self.filteredAssetDatas[i]["previewFile"],self.filteredAssetDatas[i]["name"],self.filteredAssetDatas[i]["AssetID"])
                 self.currentLoadedCardCount+=1
             else:
                 return
@@ -413,11 +436,10 @@ class ItemCardView(QWidget,Translator):
         datas = self.loadItemFromDataBaseAndMakeItAbs()
         self.filteredAssetDatas = []
         for data in datas:
-            pattern = data["name"] + data["AssetID"] + ",".join(data["tags"])
-            if keyword.lower() in pattern.lower():
+            if keyword.lower() in data["SearchWords"].lower():
                 self.filteredAssetDatas.append(data)
         self.loadItems()
-    def loadItemFromDataBaseAndMakeItAbs(self):
+    def  loadItemFromDataBaseAndMakeItAbs(self):
         datas = DataBaseLocal.Get().getAllAssets()
         newDatas = []
         for data in datas:
@@ -446,6 +468,29 @@ class ItemCardView(QWidget,Translator):
             pass
         else:
             self.clearSearch()
+    def FilterCards(self,type_index:int,category_index:int,subcategory_index:int,search_key_word:str):
+        #load all assets
+        self.clearAllCards()
+        self.filteredAssetDatas = []
+        for assetData in self.loadItemFromDataBaseAndMakeItAbs():
+            if type_index >= 1:
+                type = list(ut.AssetType.__members__.values())[type_index-1]
+                if type.value != assetData['type']:
+                    continue
+            if category_index >= 1:
+                category = ut.GetCategorys(0)[category_index-1]
+                if category != assetData['category']:
+                    continue
+            if subcategory_index >=1:
+                subcategory = ut.GetCategorys(1)[subcategory_index-1]
+                if subcategory != assetData['subcategory']:
+                    continue
+            if search_key_word != "":
+                if search_key_word.lower() not in assetData["SearchWords"].lower():
+                    continue
+            self.filteredAssetDatas.append(assetData)
+        self.currentLoadedCardCount = 0
+        self.loadItems()
     def reloadItems(self):
         self.clearAllCards()
         self.currentLoadedCardCount = 0
@@ -454,9 +499,9 @@ class ItemCardView(QWidget,Translator):
         for data in datas:
             self.filteredAssetDatas.append(data)
         self.loadItems()
-    def addItemCard(self,imagepath:str,name:str):
+    def addItemCard(self,imagepath:str,name:str,assetID:str):
         index = len(self.cards)
-        itemCard = ItemCard(self,index,imagepath,name)
+        itemCard = ItemCard(self,index,imagepath,name,assetID)
         itemCard.clicked.connect(self.setSelectedItem)
         itemCard.goToFile.connect(self.goToFile)
         itemCard.deleteItem.connect(self.deleteAsset)
@@ -521,7 +566,6 @@ class ItemCardView(QWidget,Translator):
         return super().closeEvent(a0)
     
 
-
 class HomeInterface(QWidget):
     def __init__(self,parent=None):
         super().__init__(parent)
@@ -539,13 +583,22 @@ class HomeInterface(QWidget):
         self.rootLayout.setContentsMargins(0,0,0,0)
 
     def __initConnection(self):
-        self.item_header.searchSignal.connect(self.item_card_view.searchAssets)
-        self.item_header.clearSignal.connect(self.item_card_view.clearSearch)
-        self.item_header.combox_type.currentIndexChanged.connect(self.item_card_view.filterByType)
+        self.item_header.searchSignal.connect(self.FilterCardsPerLevel)
+        self.item_header.clearSignal.connect(self.FilterCardsPerLevel)
+        self.item_header.combox_type.currentIndexChanged.connect(self.FilterCardsPerLevel)
+        self.item_header.combox_category.currentIndexChanged.connect(self.FilterCardsPerLevel)
+        self.item_header.combox_subcategory.currentIndexChanged.connect(self.FilterCardsPerLevel)
         self.item_card_view.infoPanel.onTagClicked.connect(self.setSearchText)
     def setSearchText(self,text):
         self.item_header.searchBar.setText(text)
         self.item_card_view.searchAssets(text)
+    def FilterCardsPerLevel(self,*arg):
+        type_index = self.item_header.combox_type.currentIndex()
+        category_index = self.item_header.combox_category.currentIndex()
+        subcategory_index = self.item_header.combox_subcategory.currentIndex()
+        search_key_word = self.item_header.searchBar.text()
+        self.item_card_view.FilterCards(type_index,category_index,subcategory_index,search_key_word)
+
     def __setQss(self):
         StyleSheet.HOME_INTERFACE.apply(self)
 

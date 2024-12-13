@@ -1,6 +1,6 @@
 import os
 from tinydb import TinyDB, Query
-import shutil
+
 import hashlib
 import json
 import win32file
@@ -33,7 +33,7 @@ class Config():
         self.localConfigSavePath = os.path.join(self.localAssetLibraryFolder,"config.json")
 
         # can saved value
-        self.remoteAssetLibraryFolder = "E:\AssetLibrary"
+        self.remoteAssetLibraryFolder = "C:\AssetLibrary"
         self.sockeAddress = "127.0.0.1"
         self.socketSendPort = 54321
         self.exportTextureSizeIndex = 0

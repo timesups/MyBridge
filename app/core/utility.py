@@ -1,15 +1,12 @@
-from enum import Enum
 import os
-from dataclasses import dataclass,field
 import random
 import string
 import shutil
 import copy
 import json
 from PIL import Image,ImageFile
-import OpenEXR
+import pyexr
 import Imath
-import numpy
 import numexpr as ne
 import socket
 from tinydb import TinyDB, Query
@@ -17,21 +14,21 @@ import sys
 from qfluentwidgets import Dialog
 from win32com.client import Dispatch
 import zipfile
-
-
 from app.core.config import Config
 from app.core.datebase import DataBaseRemote,DataBaseLocal
 
-from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,QThread
-from PyQt5.QtCore import QObject, QSize,pyqtSignal
+from PyQt5.QtCore import QThread
+from PyQt5.QtCore import pyqtSignal
 import time
-
+from enum import Enum
+from dataclasses import dataclass,field
 
 from app.core.Log import Log
 
+
 UPDATE_SERVE_PATH = r"\\192.168.3.252\中影年年文化传媒有限公司\6动画基地\制作中心\地编组\Z_赵存喜\MyBirdge\update"
-
-
+TextureExtensions = [".png",'.exr','.jpg']
+FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
 
 class MyBridgetGlobalEnum(Enum):
     def __format__(self, format_spec: str) -> str:
@@ -102,6 +99,7 @@ class AssetMapType(MyBridgetGlobalEnum):
     Curvature = "curvature"
     Transmission = "transmission"
     Thickness    = "thickness"
+
 
 category = {
     "自然生态":{
@@ -374,9 +372,6 @@ def GetCategorys(level:int):
         raise
 
 
-
-
-
 @dataclass(repr=False)
 class SerializeBase:
     def to_dict(self):
@@ -487,7 +482,9 @@ class Asset(SerializeBase):
     AssetIndex     : int               = field(default_factory=int)
     OldJson        : str               = field(default_factory=str)
 
-TextureExtensions = [".png",'.exr','.jpg']
+
+
+
 def ClassifyFilesFormFolder(folder:str):
     models = []
     images = []
@@ -509,20 +506,6 @@ def ClassifyFilesFormFolder(folder:str):
         if ext == ".jpg":
             assetName = basename
     return dict(assetName = assetName,images = images,models=models)
-FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
-
-
-def exr_to_array(exrfile):
-    file = OpenEXR.InputFile(exrfile)
-    dw = file.header()['dataWindow']
-
-    channels = list(file.header()['channels'].keys())
-    channels_list = [c for c in ('R', 'G', 'B', 'A','Y') if c in channels]
-    size = (dw.max.x - dw.min.x + 1, dw.max.y - dw.min.y + 1)
-
-    color_channels = file.channels(channels_list, FLOAT)
-    channels_tuple = [numpy.frombuffer(channel, dtype='f') for channel in color_channels]
-    return numpy.dstack(channels_tuple).reshape(size + (len(channels_tuple),))
 
 def encode_to_srgb(x):
     a = 0.055
@@ -534,7 +517,13 @@ def encode_to_srgb(x):
 
 
 def exr_to_srgb(exrfile):
-    array = exr_to_array(exrfile)
+    Log(f"将EXR转换为SRGB")
+    try:
+        array =  pyexr.read(exrfile)
+    except:
+        Log(f"EXR文件读取失败")
+        return False
+    Log(f"EXR文件读取成功")
     result = encode_to_srgb(array) * 255.
     present_channels = ["R", "G", "B", "A"][:result.shape[2]]
     channels = "".join(present_channels)
@@ -542,22 +531,27 @@ def exr_to_srgb(exrfile):
         channels = "L"
         result = result.mean(axis=2)
     try:
+        Log(f"将EXR转换为SRGB完成")
         return Image.fromarray(result.astype('uint8'), channels)
     except:
         return False
 
 def readImage(filePath)->ImageFile:
+    Log(f"读取图片{filePath}")
     _,ext = os.path.splitext(filePath)
     if ext.lower() == '.exr':
-        image = exr_to_srgb(filePath)
-        if not image:
-            return False
+        # image = exr_to_srgb(filePath)
+        # if not image:
+        #     return False
+        return False
     else:
         try:
             image = Image.open(filePath)
         except:
             return False
     return image
+
+
 def GetTextureSize(uri:str):
     image = readImage(uri)
     if not image:
@@ -573,7 +567,6 @@ def GetTextureSize(uri:str):
 def removeFolder(path):
     if os.path.exists(path):
         shutil.rmtree(path)
-
 
 #进入此函数的所有路径需要保证完成规格化
 def MakeAssetByData(datas:dict)->Asset:
@@ -689,7 +682,6 @@ def generate_unique_string(length=10):
         random_string = generate_random_string(length)
         if not DataBaseRemote.Get().isAssetInDB(random_string):
             return random_string
-        
 
 def CopyFileToFolder(filePath:str,folder:str,newName:str = None,move:bool=False):
     if not os.path.exists(filePath):
@@ -717,8 +709,6 @@ def scaleImage(imagePath:str):
     return newpath
 
 
-
-
 def sendStringToUE(string:str,address:tuple[str,int]):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -738,11 +728,10 @@ def GenRoughnessMap(glossinessUri,assetID:str,dirName:str,extension:str):
     roughness_uri = os.path.join(dirName,f"{assetID}_roughness{extension}")
     if os.path.exists(roughness_uri):
         return roughness_uri
-    
     img_gloss = readImage(glossinessUri).convert("L")
-    armImage = Image.merge("L",)
-
-    pass
+    img_roughness =Image.eval(img_gloss,lambda c: 255 - c)
+    img_roughness.save(roughness_uri)
+    return roughness_uri
 def GenARMMap(ao:str,roughness:str,metallic:str,assetID:str,opacity:str,Translucency:str,extension:str,type:AssetType,dirName:str)->str:
     armUri = os.path.join(dirName,f"{assetID}_ARM{extension}")
     if os.path.exists(armUri):
@@ -784,29 +773,57 @@ def GenARMMap(ao:str,roughness:str,metallic:str,assetID:str,opacity:str,Transluc
     return armUri
 
 def ResizeTextureByString(uri:str,rootDir:str,size:str):
+    Log(f"尝试缩放贴图:{uri}")
     if not os.path.exists(rootDir):
+        Log(f"尝试创建目录:{rootDir}")
         os.makedirs(rootDir)
     fileName = os.path.basename(uri)
+    Log(f"贴图文件名为:{fileName}")
     newFileuri = os.path.join(rootDir,fileName)
+    Log(f"缩放后贴图路径为:{newFileuri}")
+    # _,ext = os.path.splitext(fileName)
+    # if ext == ".exr":
+    #     newFileuri = newFileuri.replace(ext,".png")
     if os.path.exists(newFileuri):
+        Log(f"目录下已经存在缩放过的贴图,跳过")
         return newFileuri
+    image = readImage(uri)
+    if not image:
+        return False
     if size == "2K":
-        image = readImage(uri)
-        image = image.resize((2048,2048))
-        image.save(newFileuri)
-        return newFileuri
+        Log(f"将贴图缩放为2K")
+        scalfactor = 2048
     elif size == "4K":
-        image = readImage(uri)
-        image = image.resize((4096,4096))
-        image.save(newFileuri)
-        return newFileuri
-    return uri
+        Log(f"将贴图缩放为2K")
+        scalfactor = 4096
+    image = image.resize((scalfactor,scalfactor))
+    image.save(newFileuri)
+    Log(f"贴图缩放成功")
+    return newFileuri
+def fixNormalMiss(rootPath:str,asset:Asset,jsonuri:str):
+    files = os.listdir(rootPath)
+    files = [file for file in files if "normal" in file.lower()]
+    for normal in files:
+        if "lod" in normal.lower():
+            index = eval(normal.lower().split("lod")[-1].split(".")[0])
+            Log(f"发现存在LOD{index}的法线贴图,可以替代")
+            if asset.Lods[index].normalMap.uri == "":
+                asset.Lods[index].normalMap.uri = os.path.basename(normal)
+                asset.Lods[index].normalMap.name,asset.Lods[index].normalMap.extension = os.path.splitext(asset.Lods[index].normalMap.uri)
+        else:
+            pass
+    with open(jsonuri,"w",encoding='utf-8') as f:
+        f.write(json.dumps(asset.to_dict()))
+    return asset
 
 
 def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod_level:str):
     with open(libraryAssetData["jsonUri"],'r',encoding="utf-8") as f:
             asset = Asset.from_dict(json.loads(f.read()))
     rootFolder = os.path.join(Config.Get().remoteAssetLibrary,asset.rootFolder)
+    
+    Log(f"当前资产根目录为:{rootFolder}")
+    Log(f"当前资产格式为:{asset.assetFormat.value}")
     if asset.assetFormat == AssetFormat.FBX:
         #获取所有需要的贴图
         size = list(TextureSize.__members__.values())[sizeIndex].value
@@ -820,9 +837,15 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod
         Glossiness = None
         extension = ".png"
         for map in asset.assetMaterials[0].maps:
+            if map.uri == "":
+                continue
             mapUri = os.path.join(rootFolder,map.uri)
+            if not os.path.exists(mapUri):
+                continue
             if map.size.value != size:
                 mapUri = ResizeTextureByString(mapUri,os.path.join(rootFolder,f"Thumbs/{size}"),size)
+                if not mapUri:
+                    continue
             if map.type== AssetMapType.Albedo:
                 BaseColor = mapUri
             elif map.type == AssetMapType.AO:
@@ -841,8 +864,32 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod
                 Glossiness = mapUri
             else:
                 pass
+        #尝试修复法线贴图路径
+        if not Normal:
+            Log(f"法线贴图未找到,尝试寻找")
+            asset = fixNormalMiss(rootFolder,asset,libraryAssetData["jsonUri"])
+        #获取对应的mesh
+        if lod_level == "original":
+            meshUri = os.path.join(rootFolder,asset.OriginMesh.uri)
+        else:
+            lod_index = GetLodLevelByName(lod_level)
+            meshUri = os.path.join(rootFolder,asset.Lods[lod_index].mesh.uri)
+            if asset.Lods[lod_index].normalMap.uri != "":
+                Normal = os.path.join(rootFolder,asset.Lods[lod_index].normalMap.uri)
+        Log(f"当前导出的模型的地址为{meshUri}")
+        #尝试寻找其他法线贴图路径
+        if not Normal:
+            Log(f"法线贴图仍然未找到,尝试使用其他lod的法线贴图代替")
+            for lod in asset.Lods:
+                Normal = os.path.join(rootFolder,lod.normalMap.uri)
+                if os.path.exists(Normal):
+                    break
+                else:
+                    Normal = None
+                    Log(f"不存在其他法线贴图")
+
         if not Roughness and Glossiness:
-            Roughness = GenRoughnessMap(Glossiness,asset.AssetID,os.path.dirname(BaseColor))
+            Roughness = GenRoughnessMap(Glossiness,asset.AssetID,os.path.dirname(BaseColor),extension)
         if not (Roughness and BaseColor and Normal):
             return False
         elif asset.type == AssetType.Decal and not Opacity:
@@ -852,16 +899,11 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod
         armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,Opacity,Translucency,extension,asset.type,os.path.dirname(BaseColor))
         if not armUri:
             return False
-        #获取对应的mesh
-        if lod_level == "original":
-            meshUri = os.path.join(rootFolder,asset.OriginMesh.uri)
-        else:
-            lod_index = GetLodLevelByName(lod_level)
-            meshUri = os.path.join(rootFolder,asset.Lods[lod_index].mesh.uri)
     elif asset.assetFormat == AssetFormat.UnrealEngine:
         pass
+
     message = dict(
-        name = asset.name,
+        name = asset.name.replace(" ","_"),#去除资产名称中的空格
         AssetID = asset.AssetID,
         assetFormat = asset.assetFormat.value,
         assetType = asset.type.value,
@@ -870,9 +912,13 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod
         arm = armUri,
         mesh = meshUri
     )
+    Log("将以下消息发送到UE中")
+    print(message)
     if sendStringToUE(json.dumps(message),address):
+        Log("消息发送成功")
         return True
     else:
+        Log("消息发送失败")
         return False
 def refixDB():
     path = r'\\192.168.3.126\AssetLibrary'
@@ -1032,7 +1078,9 @@ def AddAssetDataToDataBase(asset:Asset):
                 break
             else:
                 time.sleep(5)
-                
+
+
+
 class CustomWorker(QThread):
     onFinished = pyqtSignal()
     def __init__(self, fun,parent=None) -> None:
@@ -1041,6 +1089,10 @@ class CustomWorker(QThread):
     def run(self) -> None:
         self.fun()
         self.onFinished.emit()
+
+
+
+
 
 if __name__ == "__main__":
     exePath = "D:\Documents\ZCXCode\MyBridge\dist\MyBridge\MyBridge.exe"

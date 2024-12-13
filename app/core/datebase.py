@@ -79,10 +79,13 @@ class DataBaseLocal(DataBase):
                     break
                 else:
                     time.sleep(1)
-        else:
-            os.remove(self.dataBasePath)
+        elif os.path.exists(self.dataBasePath):
+            if not self.isUsed:
+                os.remove(self.dataBasePath)
             DataBaseRemote().Get().UseDataBase()
             DataBaseRemote().Get().releaseDataBase()
+        else:
+            pass
 
     @classmethod
     def Get(cls):
