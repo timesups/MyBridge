@@ -796,6 +796,9 @@ def ResizeTextureByString(uri:str,rootDir:str,size:str):
     elif size == "4K":
         Log(f"将贴图缩放为2K")
         scalfactor = 4096
+    else:
+        Log(f"将贴图缩放为8K")
+        scalfactor = 8192
     image = image.resize((scalfactor,scalfactor))
     image.save(newFileuri)
     Log(f"贴图缩放成功")
