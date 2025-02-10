@@ -16,14 +16,12 @@ from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,QThread
 import functools
 import os
 
-
 from app.core.utility import category,GetCategorys,GetParentsCategory,AssetSize,AssetType,ClassifyFilesFormFolder,MakeAssetByData
 
 import app.core.utility as ut
 from app.core.style_sheet import StyleSheet
 from app.core.translator import Translator
 from app.core.config import Config
-from app.core.datebase import DataBaseRemote
 from app.core.common_widgets import scaleMap
 import app.core.common_widgets as common
 from app.core.Log import Log
@@ -96,41 +94,8 @@ class TagButton(PushButton):
         self.setIcon(icon)
         self.clicked.connect(lambda:self.deletClicked.emit(self.index))
     pass
-class LineEidtGroup(QWidget):
 
-    def __init__(self, parent,text:str,textMaxWidth:int = 50):
-        super().__init__(parent)
-        self.textMaxWidth = textMaxWidth
 
-        self.rootLayout = QHBoxLayout(self)
-        self.labelText =QLabel(self,text=text)
-        self.lineEdit = LineEdit(self)
-        self.__initWidget()
-        self.__initConnections()
-    def __initWidget(self):
-        self.rootLayout.addWidget(self.labelText)
-        self.rootLayout.addWidget(self.lineEdit)
-        self.rootLayout.setContentsMargins(0,0,0,0)
-        self.labelText.setFixedWidth(self.textMaxWidth)
-    def __initConnections(self):
-
-        pass
-
-class ComboxGroup(QWidget):
-    def __init__(self, parent,text:str,textMaxWidth:int = 50):
-        super().__init__(parent)
-        self.textMaxWidth = textMaxWidth
-        self.rootLayout = QHBoxLayout(self)
-        self.labelText =QLabel(self,text=text)
-        self.combox = ComboBox(self)
-        self.__initWidget()
-    def __initWidget(self):
-        self.rootLayout.addWidget(self.labelText)
-        self.rootLayout.addWidget(self.combox)
-        self.rootLayout.setContentsMargins(0,0,0,0)
-        self.labelText.setFixedWidth(self.textMaxWidth)
-    def addItems(self,items:list[str]):
-        self.combox.addItems(items)
 
 class TabBarButton(QWidget):
     clicked = pyqtSignal(int)
@@ -201,7 +166,7 @@ class ImportSettings(QWidget,Translator):
 
 
         self.label_nameTga = TitleLabel(self.tra("Import Settings"),self)
-        self.leg_name = LineEidtGroup(self,self.tra("Name"),self.maxTextWidth)
+        self.leg_name = common.LineEidtGroup(self,self.tra("Name"),self.maxTextWidth)
 
         self.tags_widegt = QWidget(self)
         self.tags_widegt.setMinimumHeight(30)
@@ -215,21 +180,21 @@ class ImportSettings(QWidget,Translator):
 
 
         self.tags = []
-        self.leg_tags = LineEidtGroup(self,self.tra("Tags"),self.maxTextWidth)
+        self.leg_tags = common.LineEidtGroup(self,self.tra("Tags"),self.maxTextWidth)
         
-        self.combox_type = ComboxGroup(self,self.tra("Type"),self.maxTextWidth)
+        self.combox_type = common.ComboxGroup(self,self.tra("Type"),self.maxTextWidth)
 
         self.widgetCategorys = QWidget(self)
         self.widgetCategorysLayout = QHBoxLayout(self.widgetCategorys)
 
-        self.combox_category = ComboxGroup(self.widgetCategorys,self.tra("Category"),self.maxTextWidth)
-        self.combox_subcategory = ComboxGroup(self.widgetCategorys,self.tra("Subcategory"),self.maxTextWidth)
+        self.combox_category = common.ComboxGroup(self.widgetCategorys,self.tra("Category"),self.maxTextWidth)
+        self.combox_subcategory = common.ComboxGroup(self.widgetCategorys,self.tra("Subcategory"),self.maxTextWidth)
 
         self.widgetSize = QWidget(self)
         self.widgetSizeLayout = QHBoxLayout(self.widgetSize)
 
         
-        self.combox_SurfaceSize = ComboxGroup(self.widgetSize,self.tra("Surface Size"),self.maxTextWidth)
+        self.combox_SurfaceSize = common.ComboxGroup(self.widgetSize,self.tra("Surface Size"),self.maxTextWidth)
         self.checkbox_TilesVertically = CheckBox(self.tra("Tiles Vertically"),self.widgetSize)
         self.checkbox_TilesVertically.setChecked(True)
         self.checkobx_TillesHorizontically = CheckBox(self.tra("Tiles Horizontically"),self.widgetSize)

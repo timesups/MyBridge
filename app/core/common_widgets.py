@@ -1,6 +1,14 @@
 from qfluentwidgets import (Dialog,PushButton,IndeterminateProgressRing,SubtitleLabel)
+from qfluentwidgets import (PushButton,SmoothScrollArea,ComboBox,
+                            TitleLabel,CheckBox,LineEdit,
+                            LineEditButton,IndeterminateProgressRing,
+                            InfoBar,InfoBarPosition,FlowLayout,Dialog)
 from qfluentwidgets import FluentIcon as FIF
 
+from PyQt5.QtWidgets import (QApplication,QWidget,
+                             QHBoxLayout,QVBoxLayout,
+                             QLabel,QLineEdit,QTabWidget,
+                             QFileDialog,QTabBar,QSizePolicy)
 
 from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
                              QFrame,QHBoxLayout,QVBoxLayout,
@@ -127,3 +135,41 @@ class TitleProgressRing(QWidget):
         self.setLayout(self.mainLayout)
         self.setFixedSize(200,200)
         pass
+
+
+class LineEidtGroup(QWidget):
+
+    def __init__(self, parent,text:str,textMaxWidth:int = 50):
+        super().__init__(parent)
+        self.textMaxWidth = textMaxWidth
+
+        self.rootLayout = QHBoxLayout(self)
+        self.labelText =QLabel(self,text=text)
+        self.lineEdit = LineEdit(self)
+        self.__initWidget()
+        self.__initConnections()
+    def __initWidget(self):
+        self.rootLayout.addWidget(self.labelText)
+        self.rootLayout.addWidget(self.lineEdit)
+        self.rootLayout.setContentsMargins(0,0,0,0)
+        self.labelText.setFixedWidth(self.textMaxWidth)
+    def __initConnections(self):
+        pass
+
+
+
+class ComboxGroup(QWidget):
+    def __init__(self, parent,text:str,textMaxWidth:int = 50):
+        super().__init__(parent)
+        self.textMaxWidth = textMaxWidth
+        self.rootLayout = QHBoxLayout(self)
+        self.labelText =QLabel(self,text=text)
+        self.combox = ComboBox(self)
+        self.__initWidget()
+    def __initWidget(self):
+        self.rootLayout.addWidget(self.labelText)
+        self.rootLayout.addWidget(self.combox)
+        self.rootLayout.setContentsMargins(0,0,0,0)
+        self.labelText.setFixedWidth(self.textMaxWidth)
+    def addItems(self,items:list[str]):
+        self.combox.addItems(items)

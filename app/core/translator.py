@@ -302,6 +302,10 @@ dictionary = {
 "3D Assets":"3D 资产",
 "Surface":"表面",
 "brush" : "笔刷",
+"Texture":"纹理",
+"Material":"材质",
+"MaterialFunction":"材质函数",
+"VFX":"特效"
 }
 class Translator:
     def tra(self,text:str):

@@ -14,6 +14,8 @@ from app.ui.import_interface import ImportInterface
 from app.core.translator import Translator
 import app.core.utility as ut
 
+from app.ui.unreal_asset_import_iterface import UnrealAssetImportWindow
+
 class MainWindow(FluentWindow,Translator):
     def __init__(self):
         super().__init__()
@@ -28,6 +30,11 @@ class MainWindow(FluentWindow,Translator):
         self.show()
         self.__createSubInterface()
         self.splashScreen.finish()
+
+        #启动socket服务
+        self.socket = ut.SocketThread.StartListening(self)
+
+
     def __createSubInterface(self):
         self.homeInterface = HomeInterface(self)
         self.SettingInterface = SettingInterface(self)
@@ -42,7 +49,11 @@ class MainWindow(FluentWindow,Translator):
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
     def closeEvent(self, e):
         Log("主窗口已经关闭","Main")
+         #关闭socket服务
+        self.socket.stop()
         return super().closeEvent(e)
+
+
 
 if __name__ == "__main__":
     if ut.get_pid("MyBridge.exe"):
@@ -61,6 +72,10 @@ if __name__ == "__main__":
         Log("未检测到更新,启动窗口中","Main")
         window = MainWindow()
         window.show()
+
+
+
+
         Log("程序启动完成","Main")
         sys.exit(app.exec_())
 

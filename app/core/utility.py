@@ -25,6 +25,8 @@ from dataclasses import dataclass,field
 
 from app.core.Log import Log
 
+import socket
+
 
 UPDATE_SERVE_PATH = r"\\192.168.3.252\中影年年文化传媒有限公司\6动画基地\制作中心\地编组\Z_赵存喜\MyBirdge\update"
 TextureExtensions = [".png",'.exr','.jpg']
@@ -65,6 +67,7 @@ class AssetType(MyBridgetGlobalEnum):
     Plant   = "Plant"
     Brush   = "brush"
 
+    
 class Format(MyBridgetGlobalEnum):
     FBX = "Fbx"
     Unreal = "Unreal"
@@ -465,7 +468,7 @@ class Asset(SerializeBase):
     previewFile    : list[str]         = field(default_factory=list[str])
     Lods           : list[LOD]         = field(default_factory=list[LOD])
     assetMaterials : list[Material]    = field(default_factory=list[Material])
-    MeshVars : list[MeshVar]    = field(default_factory=list[MeshVar])
+    MeshVars       : list[MeshVar]     = field(default_factory=list[MeshVar])
 
     type           : AssetType         = field(default=AssetType.Assets3D)
     category       : str               = field(default=GetCategorys(0)[0])
@@ -481,7 +484,6 @@ class Asset(SerializeBase):
 
     AssetIndex     : int               = field(default_factory=int)
     OldJson        : str               = field(default_factory=str)
-
 
 
 
@@ -1093,9 +1095,56 @@ class CustomWorker(QThread):
         self.fun()
         self.onFinished.emit()
 
-
-
-
+class SocketThread(QThread):
+    isrunning = True
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.host = "127.0.0.1"
+        self.port = 45450
+        self.__isListening = True
+    def run(self):
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # 绑定地址和端口
+        self.socket.bind((self.host, self.port))
+        # 开始监听，参数5表示等待连接的最大数量
+        self.socket.listen()
+        print(f"Server is listening on {self.host}:{self.port}")
+        # 无限循环来接受客户端连接
+        while self.__isListening:
+            try:
+                # 接受客户端连接，这个调用会阻塞，直到接收到连接
+                conn, addr = self.socket.accept()
+            except OSError as e:
+                print(f"An error occurred: {e}")
+                break
+            with conn:
+                print(f"Connected by {addr}")
+                # 持续接收数据
+                while True:
+                    try:
+                        # 接收数据，1024是接收缓冲区的大小
+                        data = conn.recv(1024)
+                        if not data:
+                            # 没有数据，客户端可能关闭了连接
+                            break
+                        # 打印接收到的数据
+                        message = data.decode()
+                        print(f"Received: {message}")
+                        # 可以选择回显数据给客户端
+                        # conn.sendall(data)
+                    except Exception as e:
+                        # 捕获异常，可能是连接中断
+                        print(f"An error occurred: {e}")
+                        break
+        print("listening stoped")
+    def stop(self):
+        self.__isListening = False
+        self.socket.close()
+    @classmethod
+    def StartListening(cls,parent=None):
+        thread = SocketThread(parent)
+        thread.start()
+        return thread
 
 if __name__ == "__main__":
     exePath = "D:\Documents\ZCXCode\MyBridge\dist\MyBridge\MyBridge.exe"

@@ -7,7 +7,6 @@ import time
 
 from app.core.config import Config
 
-
 def calculate_md5(file_path, block_size=65536):
     md5 = hashlib.md5()
     with open(file_path, 'rb') as f:
