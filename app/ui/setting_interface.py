@@ -46,14 +46,15 @@ class SettingInterface(QWidget,Translator):
         rootLayout = QVBoxLayout(self)
 
         label_Settings = TitleLabel(self.tra("Settings"),self)
-        group_path_settings = SettingCardGroup(self.tra("Path Settings"),self)
-        self.card_remote_library_path = PushSettingCard(
-            self.tra("Choose folder"),
-            FIF.LIBRARY_FILL,
-            self.tra("Remote Library Directory"),
-            Config.Get().remoteAssetLibraryFolder,
-            group_path_settings
+        group_server_settings = SettingCardGroup(self.tra("服务器设置"),self)
+        self.card_server_address = LineEditSettingCard(
+            FIF.CONNECT,
+            self.tra("服务器地址"),
+            text = Config.Get().backendAddress,
+            parent = group_server_settings
         )
+        self.card_server_address.editingFinished.connect(self.__setBackendAddress)
+
 
         version = ""
         exePath = ut.GetExePath()
@@ -71,10 +72,10 @@ class SettingInterface(QWidget,Translator):
         )
         self.aboutCard.button.setHidden(True)
         self.aboutGroup.addSettingCard(self.aboutCard)
-        self.card_remote_library_path.clicked.connect(self.__SeletLibraryFolder)
+
         
-        group_path_settings.addSettingCard(self.card_remote_library_path)
-        group_path_settings.setMaximumHeight(150)
+        group_server_settings.addSettingCard(self.card_server_address)
+        group_server_settings.setMaximumHeight(150)
 
         group_connect_settings = SettingCardGroup(self.tra("Connect Settings"),self)
 
@@ -99,7 +100,7 @@ class SettingInterface(QWidget,Translator):
 
 
         rootLayout.addWidget(label_Settings)
-        rootLayout.addWidget(group_path_settings)
+        rootLayout.addWidget(group_server_settings)
         rootLayout.addWidget(group_connect_settings)
         rootLayout.addWidget(self.aboutGroup)
         rootLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -116,11 +117,15 @@ class SettingInterface(QWidget,Translator):
         if not folder or Config.Get().remoteAssetLibraryFolder == folder:
             return
         Config.Get().remoteAssetLibraryFolder = folder
-        self.card_remote_library_path.setContent(folder)
+        self.card_server_address.setContent(folder)
         Config.Get().saveConfig()
         self.showInfoConfigSaved()
     def __setAddress(self,text:str):
         Config.Get().sockeAddress = text
+        Config.Get().saveConfig()
+        self.showInfoConfigSaved()
+    def __setBackendAddress(self,text:str):
+        Config.Get().backendAddress = text
         Config.Get().saveConfig()
         self.showInfoConfigSaved()
     def __setPort(self,text:str):

@@ -12,6 +12,34 @@ DirectiorySelectGroup > QLabel{
     color: rgb(255, 255, 255);
     font: 15px 'Segoe UI', 'Microsoft YaHei', 'PingFang SC';
 }
+
+QToolButton{
+    color: rgb(255, 255, 255);
+    font: 15px 'Segoe UI', 'Microsoft YaHei', 'PingFang SC';
+}
+#assets_import_interface
+{
+    background-color: rgb(45, 45, 45);
+}
+
+
+SmoothScrollArea{
+    background-color: rgb(45, 45, 45);
+    border-radius: 0px;
+}
+
+#scrollWidget
+{
+    background-color: rgb(45, 45, 45);
+}
+
+
+#widget_tab_bar
+{
+    background-color: rgb(35, 35, 35);
+}
+
+
 TabBarButton > QLabel{
     color: rgb(150, 150, 150);
     font: 18px 'Segoe UI', 'Microsoft YaHei', 'PingFang SC';
@@ -26,33 +54,21 @@ TabBarButton[isSelected=true]> QLabel
 {
     color: rgb(255, 255, 255);
 }
-
-#addNewAssetWidget >QLabel{
+#label_title{
     color: rgb(150, 150, 150);
     font: 18px 'Segoe UI', 'Microsoft YaHei', 'PingFang SC';
-    font-weight: bold;
 }
 
-
-#ImportItemButtonWidget{
-    background-color: rgb(30, 30, 30);
-}
-
-SmoothScrollArea
-{
-    border: 0px solid rgb(0, 0, 0);
-}
-
-#ScrollWidget{
-    background-color: rgb(39, 39, 39);
-}
-
-TabBar{
-    height: 0px;
-}
-TabWidget{
-    border: 0px solid rgb(0, 0, 0);
-}
-#widget_import_button{
+QTabWidget{
     background-color: rgb(45, 45, 45);
+    border: 0px solid rgb(0, 0, 0);
+
 }
+
+QTabWidget::pane{
+    background-color: rgb(45, 45, 45);
+    border: 0px solid rgb(0, 0, 0);
+}
+
+
+

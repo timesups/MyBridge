@@ -6,8 +6,10 @@
         <file>qss/dark/home_interface.qss</file>
         <file>qss/dark/import_interface.qss</file>
         <file>qss/dark/setting_interface.qss</file>
+        <file>qss/dark/assets_import_interface.qss</file>
         <file>qss/light/home_interface.qss</file>
         <file>qss/light/import_interface.qss</file>
         <file>qss/light/setting_interface.qss</file>
+        <file>qss/light/assets_import_interface.qss</file>
     </qresource>
 </RCC>

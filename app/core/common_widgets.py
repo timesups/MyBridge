@@ -2,7 +2,7 @@ from qfluentwidgets import (Dialog,PushButton,IndeterminateProgressRing,Subtitle
 from qfluentwidgets import (PushButton,SmoothScrollArea,ComboBox,
                             TitleLabel,CheckBox,LineEdit,
                             LineEditButton,IndeterminateProgressRing,
-                            InfoBar,InfoBarPosition,FlowLayout,Dialog)
+                            InfoBar,InfoBarPosition,FlowLayout,Dialog,ToolButton)
 from qfluentwidgets import FluentIcon as FIF
 
 from PyQt5.QtWidgets import (QApplication,QWidget,
@@ -16,10 +16,117 @@ from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
 from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QImage,QPixmap,QColor, 
                          QResizeEvent)
-from PyQt5.QtCore import QObject, QRect,Qt,QPoint,QEasingCurve,pyqtSignal,QThread
+from PyQt5.QtCore import QObject, QRect,Qt,QPoint,QEasingCurve,pyqtSignal,QThread,QPropertyAnimation
 
 
 import sys
+
+
+
+def showDialog(title,content,parent):
+    w = Dialog(title,content,parent)
+    w.setTitleBarVisible(False)
+    w.setContentCopyable(True)
+    return(w.exec())
+
+
+
+
+
+
+
+
+
+
+class TabWidget(QTabWidget):
+    def __init__(self,parent=None):
+        super().__init__(parent)
+        self.setObjectName("tableWidget")
+        self.tabBar().close()
+
+
+
+
+
+class FadeToolButton(ToolButton):
+    def __init__(self, icon,parent):
+        super().__init__(parent)
+        self.setIcon(icon)
+        self.close()
+    def fadeAnimation(self,disappear:bool):
+        
+        startValue = 0.0
+        endValue = 1.0
+        if disappear:
+            self.close()
+            startValue = 1.0
+            endValue = 0.0
+        else:
+            self.show()
+        self.animation = QPropertyAnimation(self, b"windowOpacity")
+        self.animation.setDuration(1000)  # 动画持续时间 1000 毫秒.
+        self.animation.setStartValue(startValue)  # 起始透明度为 1.0（完全不透明）
+        self.animation.setEndValue(endValue)    # 结束透明度为 0.0（完全透明）
+        self.animation.start()
+
+
+
+
+
+
+
+class TabBarButton(QWidget):
+    clicked = pyqtSignal(int)
+    delete_clicked = pyqtSignal(int)
+    def __init__(self, parent,text:str,index:int):
+        super().__init__(parent)
+        self.rootLayout = QHBoxLayout(self)
+        self.selectedFlageWidth = 5
+        self.setFixedSize(200, 25)
+        self.label = QLabel(self,text=text)
+        self.isSelected = False
+        self.button_delete = FadeToolButton(FIF.DELETE,self)
+        self.index = index
+
+        self.__initWidget()
+        self.__initConnection()
+    def __initWidget(self):
+
+        self.rootLayout.addWidget(self.label,alignment=Qt.AlignmentFlag.AlignLeft)
+        self.rootLayout.addWidget(self.button_delete,alignment=Qt.AlignmentFlag.AlignRight)
+        self.rootLayout.setContentsMargins(self.selectedFlageWidth+10,0,10,0)
+
+
+        self.button_delete.setFixedSize(self.height()-2,self.height()-2)
+        pass
+    def __initConnection(self):
+        self.button_delete.clicked.connect(lambda :self.delete_clicked.emit(self.index))
+    def paintEvent(self, a0: QPaintEvent | None) -> None:
+        super().paintEvent(a0) 
+        if not self.isSelected:
+            return
+        painter = QPainter(self)
+        rect = QRect(0,0,self.selectedFlageWidth,self.height())
+        painter.fillRect(rect,QColor(139,194,74,255))
+        painter.end()
+    def setSelected(self,isSelected:bool,force=False):
+        if isSelected == self.isSelected and not force:
+            return
+        self.isSelected = isSelected
+        self.setProperty("isSelected",self.isSelected)
+        self.setStyle(QApplication.style())
+    def mousePressEvent(self, a0: QMouseEvent | None) -> None:
+        if self.isSelected:
+            return
+        self.clicked.emit(self.index)
+    def setText(self,text:str):
+        if len(text) > 10:
+            text = text[:10] + "..."
+        self.label.setText(text)
+    def enterEvent(self, a0) -> None:
+        self.button_delete.fadeAnimation(False)
+    def leaveEvent(self, a0) -> None:
+        self.button_delete.fadeAnimation(True)
 
 def LoadPixmapSafely(path):
     pixmap = QPixmap(path)
@@ -109,11 +216,13 @@ class StringButton(PushButton):
 
 class CommonWorker(QThread):
     fun = None
+    overed = pyqtSignal()
     def __init__(self, parent: QObject | None = ...) -> None:
         super().__init__(parent)
     def run(self) -> None:
         if self.fun:
             self.fun()
+        self.overed.emit()
 
 
 class TitleProgressRing(QWidget):
@@ -138,7 +247,7 @@ class TitleProgressRing(QWidget):
 
 
 class LineEidtGroup(QWidget):
-
+    returnPressed = pyqtSignal(str)
     def __init__(self, parent,text:str,textMaxWidth:int = 50):
         super().__init__(parent)
         self.textMaxWidth = textMaxWidth
@@ -146,6 +255,7 @@ class LineEidtGroup(QWidget):
         self.rootLayout = QHBoxLayout(self)
         self.labelText =QLabel(self,text=text)
         self.lineEdit = LineEdit(self)
+        self.lineEdit.returnPressed.connect(self.returnPress)
         self.__initWidget()
         self.__initConnections()
     def __initWidget(self):
@@ -153,18 +263,29 @@ class LineEidtGroup(QWidget):
         self.rootLayout.addWidget(self.lineEdit)
         self.rootLayout.setContentsMargins(0,0,0,0)
         self.labelText.setFixedWidth(self.textMaxWidth)
+    def setText(self,text:str):
+        self.lineEdit.setText(text)
+    def clear(self):
+        self.lineEdit.clear()
+    def text(self):
+        return self.lineEdit.text()
+    def returnPress(self):
+        self.returnPressed.emit(self.lineEdit.text())
+        self.clear()
     def __initConnections(self):
         pass
 
 
 
 class ComboxGroup(QWidget):
+    currentTextChanged = pyqtSignal(str)
     def __init__(self, parent,text:str,textMaxWidth:int = 50):
         super().__init__(parent)
         self.textMaxWidth = textMaxWidth
         self.rootLayout = QHBoxLayout(self)
         self.labelText =QLabel(self,text=text)
         self.combox = ComboBox(self)
+        self.combox.currentTextChanged.connect(self.currentTextChange)
         self.__initWidget()
     def __initWidget(self):
         self.rootLayout.addWidget(self.labelText)
@@ -173,3 +294,16 @@ class ComboxGroup(QWidget):
         self.labelText.setFixedWidth(self.textMaxWidth)
     def addItems(self,items:list[str]):
         self.combox.addItems(items)
+    def setCurrentText(self,text:str):
+        self.combox.setCurrentText(text)
+    def setCurrentIndex(self,index:int):
+        self.combox.setCurrentIndex(index)
+    def currentText(self):
+        return self.combox.currentText()
+    def currentIndex(self):
+        return self.combox.currentIndex()
+    def currentTextChange(self,str):
+        self.currentTextChanged.emit(str)
+    def clear(self):
+        self.combox.clear()
+

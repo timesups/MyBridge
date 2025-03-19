@@ -17,11 +17,13 @@ from app.core.style_sheet import StyleSheet
 from app.core.common_widgets import scalePixelMap,scaleMap,StringButton,LoadPixmapSafely
 import app.core.utility as ut
 from app.core.config import Config
-from app.core.datebase import DataBaseLocal,DataBaseRemote
+import json
 
 from app.core.translator import Translator
 from app.core.icons import Icons
 
+from ..core.backend import Backend
+from .assets_import_interface import AssetsEditInterface
 
 class ItemCardContextMenu(QMenu):
     def __init__(self,parent=None):
@@ -39,6 +41,7 @@ class ItemCard(QFrame):
     clicked = pyqtSignal(int)
     goToFile = pyqtSignal(int)
     deleteItem = pyqtSignal(int)
+    editItem = pyqtSignal(int)
     def __init__(self,parent,index:int,imagePath:str,name:str,assetid:str,size:int=250):
         super().__init__(parent=parent)
         self.setFixedSize(size,size)
@@ -54,6 +57,7 @@ class ItemCard(QFrame):
         self.isFavorite = False
         self.heartPixmap = Icons.get().heart
         self.assetid = assetid
+        self.action_edit = None
     def setSize(self,size:int):
         self.resize(size,size)
         self.setFixedSize(size,size)
@@ -74,6 +78,10 @@ class ItemCard(QFrame):
         action = menu.addAction("删除资产")
         action.triggered.connect(lambda :self.deleteItem.emit(self.index))
 
+
+        action = menu.addAction("编辑资产")
+        action.triggered.connect(lambda :self.editItem.emit(self.index))
+        
 
         menu.move(a0.globalPos())
         menu.show()
@@ -132,7 +140,6 @@ class InfoPanelImagePreivew(QFrame):
     def resizeEvent(self, a0: QResizeEvent | None) -> None:
         self.__reloadImage()
         return super().resizeEvent(a0)
-
 
 
 class InfoPanel(QFrame,Translator):
@@ -225,13 +232,19 @@ class InfoPanel(QFrame,Translator):
         self.typeLabel.setText(type)
 
         self.CategoryLabel.setText(f"{category}|{subcategory}")
+
         for i in range(self.tagsFlowLayout.count()):
-            self.tagsFlowLayout.itemAt(i).widget().close()
+            button = self.tagsFlowLayout.itemAt(i).widget()
+            #释放内存
+            button.deleteLater()
+            button = None
+
         self.tagsFlowLayout.removeAllWidgets()
         for tag in tags:
             button = StringButton(tag)
             button.onClicked.connect(self.tagClicked)
             self.tagsFlowLayout.addWidget(button)
+
         self.combox_lod.clear()
         self.combox_lod.addItem(f"original")
         for lod in lods:
@@ -278,13 +291,14 @@ class ItemHeader(QFrame,Translator):
         self.combox_category.setFixedWidth(200)
 
 
+
         self.combox_subcategory = ComboBox(self)
         self.combox_subcategory.addItem("请选择资产次级分类")
-        self.combox_subcategory.addItems(ut.GetCategorys(1))
         self.combox_subcategory.setFixedWidth(200)
 
 
         self.__initWidget()
+
     def __initWidget(self):
         self.rootLayout.addWidget(self.headerWidget)
         self.rootLayout.setContentsMargins(15,15,15,15)
@@ -421,7 +435,8 @@ class ItemCardView(QWidget,Translator):
         self.flowLayout.removeAllWidgets()
         for card in self.cards:
             card.close()
-            del card
+            card.deleteLater()
+            card = None
         self.cards = []
     def loadItems(self):
         for i in range(self.currentLoadedCardCount,self.currentLoadedCardCount+self.LoadCardCountPerTimes):
@@ -440,12 +455,16 @@ class ItemCardView(QWidget,Translator):
                 self.filteredAssetDatas.append(data)
         self.loadItems()
     def  loadItemFromDataBaseAndMakeItAbs(self):
-        datas = DataBaseLocal.Get().getAllAssets()
+        if Backend.Get().isBackendAvailable():
+            datas = Backend.Get().getAssetsList()
+            remoteAssetLibrary = Backend.Get().getAssetRootPath()
+        else:
+            datas = []
         newDatas = []
         for data in datas:
-            data["rootFolder"] = os.path.join(Config.Get().remoteAssetLibrary,data["rootFolder"])
-            data["previewFile"] = os.path.join(Config.Get().remoteAssetLibrary,data["rootFolder"],data["previewFile"])
-            data["jsonUri"] =os.path.join(Config.Get().remoteAssetLibrary,data["rootFolder"],data["jsonUri"])
+            data["rootFolder"] = os.path.join(remoteAssetLibrary,data["rootFolder"])
+            data["previewFile"] = os.path.join(remoteAssetLibrary,data["rootFolder"],data["previewFile"])
+            data["jsonUri"] =os.path.join(remoteAssetLibrary,data["rootFolder"],data["jsonUri"])
             newDatas.append(data)
         return newDatas
     def clearSearch(self):
@@ -505,8 +524,15 @@ class ItemCardView(QWidget,Translator):
         itemCard.clicked.connect(self.setSelectedItem)
         itemCard.goToFile.connect(self.goToFile)
         itemCard.deleteItem.connect(self.deleteAsset)
+        itemCard.editItem.connect(self.editItem)
         self.cards.append(itemCard)
         self.flowLayout.addWidget(self.cards[index])
+    def editItem(self,index:int):
+        libraryAssetData = self.filteredAssetDatas[index]
+        editInterface = AssetsEditInterface(self.parentWidget().parentWidget().parentWidget().parentWidget())
+        editInterface.loadDataFromAsset(libraryAssetData)
+        editInterface.show()
+        
     def goToFile(self,index:int):
         libraryAssetData = self.filteredAssetDatas[index]
         os.startfile(os.path.normpath(libraryAssetData["rootFolder"]))
@@ -515,11 +541,9 @@ class ItemCardView(QWidget,Translator):
         w = Dialog("提示",f"是否删除资产{libraryAssetData['name']}?")
         w.setTitleBarVisible(False)
         w.setContentCopyable(True)
-        if w.exec():
+        if w.exec() and Backend.Get().isBackendAvailable():
             ut.removeFolder(libraryAssetData["rootFolder"])
-            DataBaseRemote.Get().UseDataBase()
-            DataBaseRemote.Get().deleteAssetFromDB(libraryAssetData["AssetID"])
-            DataBaseRemote.Get().releaseDataBase()
+            Backend.Get().deleteAssetFromDB(libraryAssetData["AssetID"])
             self.reloadItems()
     def exportToUnreal(self):
         if ut.sendAssetToUE(
@@ -566,6 +590,15 @@ class ItemCardView(QWidget,Translator):
         return super().closeEvent(a0)
     
 
+
+class EidtInterface(QWidget):
+    def __init__(self,parent=None):
+        super().__init__(parent)
+        self.resize(800,600)
+
+
+
+
 class HomeInterface(QWidget):
     def __init__(self,parent=None):
         super().__init__(parent)
@@ -586,7 +619,7 @@ class HomeInterface(QWidget):
         self.item_header.searchSignal.connect(self.FilterCardsPerLevel)
         self.item_header.clearSignal.connect(self.FilterCardsPerLevel)
         self.item_header.combox_type.currentIndexChanged.connect(self.FilterCardsPerLevel)
-        self.item_header.combox_category.currentIndexChanged.connect(self.FilterCardsPerLevel)
+        self.item_header.combox_category.currentIndexChanged.connect(self.changeSubcategoryComboxBaseOnCategory)
         self.item_header.combox_subcategory.currentIndexChanged.connect(self.FilterCardsPerLevel)
         self.item_card_view.infoPanel.onTagClicked.connect(self.setSearchText)
     def setSearchText(self,text):
@@ -598,6 +631,16 @@ class HomeInterface(QWidget):
         subcategory_index = self.item_header.combox_subcategory.currentIndex()
         search_key_word = self.item_header.searchBar.text()
         self.item_card_view.FilterCards(type_index,category_index,subcategory_index,search_key_word)
+    #根据主分类改变次级分类
+    def changeSubcategoryComboxBaseOnCategory(self,index):
+        index = index - 1
+        if index >= 0:
+            self.item_header.combox_subcategory.clear()
+            self.item_header.combox_subcategory.addItem("请选择资产次级分类")
+            self.item_header.combox_subcategory.addItems(ut.GetSubCategorys(index))
+        else:
+            self.item_header.combox_subcategory.clear()
+            self.item_header.combox_subcategory.addItem("请选择资产次级分类")
 
     def __setQss(self):
         StyleSheet.HOME_INTERFACE.apply(self)

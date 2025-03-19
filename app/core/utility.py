@@ -3,6 +3,7 @@ import random
 import string
 import shutil
 import copy
+import re
 import json
 from PIL import Image,ImageFile
 import pyexr
@@ -15,11 +16,11 @@ from qfluentwidgets import Dialog
 from win32com.client import Dispatch
 import zipfile
 from app.core.config import Config
-from app.core.datebase import DataBaseRemote,DataBaseLocal
+
+from .backend import Backend
 
 from PyQt5.QtCore import QThread
 from PyQt5.QtCore import pyqtSignal
-import time
 from enum import Enum
 from dataclasses import dataclass,field
 
@@ -30,11 +31,15 @@ import socket
 
 UPDATE_SERVE_PATH = r"\\192.168.3.252\中影年年文化传媒有限公司\6动画基地\制作中心\地编组\Z_赵存喜\MyBirdge\update"
 TextureExtensions = [".png",'.exr','.jpg']
+ModelExtensions = [".fbx",".ztl"]
 FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+
+
 
 class MyBridgetGlobalEnum(Enum):
     def __format__(self, format_spec: str) -> str:
         return super().__format__(format_spec)
+
     
 class ComparableEnum(MyBridgetGlobalEnum):
     def GetValue(self,var):
@@ -104,257 +109,11 @@ class AssetMapType(MyBridgetGlobalEnum):
     Thickness    = "thickness"
 
 
-category = {
-    "自然生态":{
-        "森林植被":[
-            "植物",
-            "树叶",
-            "树干树桩",
-            "树枝干",
-            "树皮",
-            "森林地面",
-            "苔藓材质",
-        ],
-        "山地丘陵":[
-            "岩石块",
-            "山地岩石壁",
-            "山土地皮",
-            "山地地面",
-        ],
-        "沙漠戈壁":[
-            "沙漠材质",
-            "土堆地面",
-            "岩石坡",
-            "沙漠岩石",
-            "岩壁"
-        ],
-        "高原":[
-            "石坡",
-            "高原地面",
-            "高原岩石"
-        ],
-        "海岸":[
-            "沙滩",
-            "地表材质",
-            "海岸岩石",
-            "海岸岩石壁"
-        ],
-        "河谷":[
-            "河谷岩石",
-            "河谷地面"
-        ],
-        "土壤":[
+if Backend.Get().isBackendAvailable():
+    category = Backend.Get().getCategories()
+else:
+    category = {}
 
-        ],
-        "碎石地":[
-
-        ],
-        "雪地":[
-
-        ],
-    },
-    "设置构建":{
-        "工厂厂房":[
-            "工厂标牌",
-            "管道",
-            "门窗",
-            "罐状物",
-            "沙袋",
-            "集装箱",
-            "结构件",
-            "工业漆墙",
-            "工业金属",
-            "设备用具"
-        ],
-        "交通设施":[
-            "标识",
-            "插线",
-            "船只",
-            "摩托车",
-            "自行车",
-            "轨道",
-            "路障",
-        ],
-        "城市街区":[
-            "街道路面",
-            "台阶道路",
-            "公共设置",
-            "标牌",
-            "城市门窗面板",
-            "墙体",
-            "样式材质",
-            "地面",
-            "垃圾"
-        ],
-        "山村城镇":[
-            "城镇门窗面板",
-            "屋顶",
-            "线路管道",
-            "行牌贴纸",
-            "墩状物",
-            "柱状物",
-            "护栏",
-            "路面",
-            "墙体"  
-            "道具",
-            "台阶道路",
-            "盒装设施",
-            "农工农具",
-            "木条木架",
-            "建筑结构",
-        ],
-        "中式结构":[
-            "屋檐屋顶",
-            "雕像",
-            "浮雕",
-            "柱体",
-            "地台",
-            "横梁",
-            "门窗",
-            "梁托",
-            "牌匾"
-            "围边",
-            "门楣",
-            "塔鼎",
-            "矮柱",
-            "神龛",
-            "阶梯",
-            "护栏",
-            "景观奇石",
-            "石碑"
-            "木质表面",
-            "地砖材质",
-            "砖墙材质",
-            "其他结构",
-        ],
-        "废旧设施":[
-            "破损地板",
-            "设备",
-            "道具",
-            "地面材质",
-            "墙体土块",
-            "块状物",
-            "腐蚀地面",
-            "面板",
-            "地摊"
-        ],
-        "欧式结构":[
-
-        ],
-    },
-    "商品货物":{
-        "家居用品":[
-            "凳子",
-            "缸类",
-            "桶",
-            "碗",
-            "文具书籍",
-            "杯子",
-            "瓶罐",
-            "钟表类"
-            "欧式家具",
-            "现代家具",
-            "中式家具",
-            "仓储柜",
-            "灯具",
-            "生活用品",
-            ],
-        "家具材质":[
-            "木材类",
-            "编织类",
-            "地砖瓷砖",
-		],
-        "电子设备":[
-		],
-        "货物包装":[
-            "包装纸盒",
-            "铁皮盒",
-            "快递包装",
-		],
-        "农产品":[
-            "浆果类",
-            "坚果类",
-            "瓜果类",
-            "蔬菜类",
-            "仁核果类",
-            "柑橘类",
-            "根茎类",
-            "菌类",
-            "鲜豆类",
-            "香料",
-		],
-        "餐饮美食":[
-            "面包",
-            "糕点",
-            "肉类",
-            "豆制品",
-		],
-        "服装穿搭":[
-            "布料材质",
-            "服装",
-            "其他",
-		],
-    },
-    "肌理特效":{
-        "墙面破损":[
-            "裂纹",
-            "砖面",
-            "墙皮",
-            "裂痕",
-		],
-        "污渍":[
-		],
-        "喷涂":[
-		],
-        "涂画":[
-            "数字字母",
-            "涂鸦",
-		],
-        "贴纸":[
-		],
-        "地面破损":[
-            "裂纹",
-            "面片",
-            "残渣",
-		],
-        "苔藓印记":[
-		],
-        "其他印记":[
-		],
-        "木制破损":[
-		],
-        "表面纹理":[
-		],
-        "腐蚀":[
-		],
-        "宣传口号":[
-		],
-    },
-    "工艺制品":{
-        "精致器皿":[
-            "茶具类",
-            "陶瓷盘类",
-            "木器",
-            "其他",
-            "金属器",
-            "陶瓷瓶罐",
-		],
-        "兵器与军工":[
-		],
-        "艺术创作":[
-            "绘画",
-            "壁画雕刻",
-            "窗花",
-		],
-        "娱乐产品":[
-            "乐器",
-            "棋牌",
-            "玩具",
-		],
-        "生物标本":[
-		],
-    },
-}
 
 def GetParentsCategory(name):
     for p in category.keys():
@@ -373,7 +132,8 @@ def GetCategorys(level:int):
         return [c for value in category.values() for ele in value.keys() for c in value[ele]]
     else:
         raise
-
+def GetSubCategorys(parentIndex:int):
+    return [ele for ele in category[GetCategorys(0)[parentIndex]].keys()]
 
 @dataclass(repr=False)
 class SerializeBase:
@@ -471,8 +231,8 @@ class Asset(SerializeBase):
     MeshVars       : list[MeshVar]     = field(default_factory=list[MeshVar])
 
     type           : AssetType         = field(default=AssetType.Assets3D)
-    category       : str               = field(default=GetCategorys(0)[0])
-    subcategory    : str               = field(default=GetCategorys(1)[0])
+    category       : str               = field(default_factory=str)
+    subcategory    : str               = field(default_factory=str)
     surfaceSize    : AssetSize         = field(default=AssetSize.Meter1)
     assetFormat    : AssetFormat       = field(default=AssetFormat.FBX)
 
@@ -499,10 +259,10 @@ def ClassifyFilesFormFolder(folder:str):
         if not os.path.isfile(filePath):
             continue #跳过目录
         # 根据拓展名分类文件类型
-        if ext in TextureExtensions:
+        if ext.lower() in TextureExtensions:
             images.append(filePath)
             pass
-        elif ext == ".fbx":
+        elif ext.lower() in ModelExtensions:
             models.append(filePath)
             pass
         if ext == ".jpg":
@@ -621,20 +381,33 @@ def MakeAssetByData(datas:dict)->Asset:
     asset.assetFormat = AssetFormat.FBX
     return asset
 
-def CopyAndRenameAsset(asset:Asset):
+
+def update_asset(asset:Asset,assetLibFolder:str):
+    #更新json文件
+    rootFolder = os.path.join(assetLibFolder,f"{asset.AssetID}")
+    JsonUri_abs = os.path.join(rootFolder,f"{asset.AssetID}.json")
+    with open(JsonUri_abs,'w+',encoding='utf-8') as f:
+        f.write(json.dumps(asset.to_dict()))
+    #更新数据库
+    Backend.Get().changeAsset(asset.AssetID,"name",asset.name)
+    Backend.Get().changeAsset(asset.AssetID,"tags",asset.tags)
+    Backend.Get().changeAsset(asset.AssetID,"type",asset.type.value)
+    Backend.Get().changeAsset(asset.AssetID,"category",asset.category)
+    Backend.Get().changeAsset(asset.AssetID,"subcategory",asset.subcategory)
+
+def CopyAndRenameAsset(asset:Asset,assetLibFolder:str):
     Log(f"Start to move asset {asset.name}","ImportAsset")
-    DataBaseRemote.Get().UseDataBase()
     # 计算资产ID
     asset.AssetID = generate_unique_string(7)
     Log(f"Asset ID is :{asset.AssetID}","ImportAsset")
     # 创建资产根目录
-    rootFolder = os.path.join(Config.Get().remoteAssetLibrary,f"{asset.AssetID}")
+    rootFolder = os.path.join(assetLibFolder,f"{asset.AssetID}")
     Log(f"Asset root folder is :{rootFolder}","ImportAsset")
     asset.rootFolder = f"{asset.AssetID}"
     if not os.path.exists(rootFolder):
         os.makedirs(rootFolder)
     # 获取资产编号
-    asset.AssetIndex = DataBaseRemote.Get().DataBaseAssetCount()
+    asset.AssetIndex = Backend.Get().getAssetsCount()
 
     #复制Bridge中原有的Json文件
     if asset.OldJson != "":
@@ -660,6 +433,13 @@ def CopyAndRenameAsset(asset:Asset):
         asset.ZbrushFile = CopyFileToFolder(asset.ZbrushFile,rootFolder,f"{asset.AssetID}.ZTL")
     else:
         pass
+    for i in range(len(asset.assetMaterials)):
+        for j in range(len(asset.assetMaterials[i].maps)):
+            if asset.assetMaterials[i].maps[j].UDIM:
+                asset.assetMaterials[i].maps[j].name = f"{asset.AssetID}_{asset.assetMaterials[i].maps[j].type.value}.{'udim'}{asset.assetMaterials[i].maps[j].extension}"
+            else:
+                asset.assetMaterials[i].maps[j].name = f"{asset.AssetID}_{asset.assetMaterials[i].maps[j].type.value}{asset.assetMaterials[i].maps[j].extension}"
+            asset.assetMaterials[i].maps[j].uri = CopyFileToFolder(asset.assetMaterials[i].maps[j].uri,rootFolder,asset.assetMaterials[i].maps[j].name,False,asset.assetMaterials[i].maps[j].UDIM,asset.assetMaterials[i].maps[j].subMapCount)
     for i in range(len(asset.assetMaterials[0].maps)):
         asset.assetMaterials[0].maps[i].name = f"{asset.AssetID}_{asset.assetMaterials[0].maps[i].type.value}{asset.assetMaterials[0].maps[i].extension}"
         asset.assetMaterials[0].maps[i].uri = CopyFileToFolder(asset.assetMaterials[0].maps[i].uri,rootFolder,asset.assetMaterials[0].maps[i].name)
@@ -670,7 +450,6 @@ def CopyAndRenameAsset(asset:Asset):
     asset.JsonUri = os.path.basename(JsonUri_abs)
     with open(JsonUri_abs,'w+',encoding='utf-8') as f:
         f.write(json.dumps(asset.to_dict()))
-    DataBaseRemote.Get().releaseDataBase()
     return asset
 
 def generate_random_string(length=10):
@@ -682,21 +461,38 @@ def generate_random_string(length=10):
 def generate_unique_string(length=10):
     while(1):
         random_string = generate_random_string(length)
-        if not DataBaseRemote.Get().isAssetInDB(random_string):
+        if Backend.Get().getAsset(random_string) == False:
             return random_string
 
-def CopyFileToFolder(filePath:str,folder:str,newName:str = None,move:bool=False):
-    if not os.path.exists(filePath):
-        return ""
-    newFileName = os.path.basename(filePath)
-    if newName:
-        newFileName = newName
-    newFilePath = os.path.join(folder,newFileName)
-    if move:
-        shutil.move(filePath,newFilePath)
+
+
+
+def CopyFileToFolder(filePath:str,folder:str,newName:str = None,move:bool=False,udim=False,udimCount:int=1):
+    if udim:
+        for i in range(udimCount):
+            udimFlag = "1{:03d}".format(i+1)
+            udim_new_name = newName.replace("udim",udimFlag)
+            udim_new_path = os.path.join(folder,udim_new_name)
+            udim_old_path = filePath.replace("udim",udimFlag)
+            if move:
+                shutil.move(udim_old_path,udim_new_path)
+            else:
+                shutil.copyfile(udim_old_path,udim_new_path)
+        return os.path.join(folder,newName)
     else:
-        shutil.copyfile(filePath,newFilePath)
-    return os.path.basename(newFilePath)
+        if not os.path.exists(filePath):
+            return ""
+        newFileName = os.path.basename(filePath)
+        if newName:
+            newFileName = newName
+        newFilePath = os.path.join(folder,newFileName)
+        if move:
+            shutil.move(filePath,newFilePath)
+        else:
+            shutil.copyfile(filePath,newFilePath)
+        return os.path.basename(newFilePath)
+
+
 
 def scaleImage(imagePath:str):
     baseName = os.path.basename(imagePath)
@@ -825,7 +621,7 @@ def fixNormalMiss(rootPath:str,asset:Asset,jsonuri:str):
 def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod_level:str):
     with open(libraryAssetData["jsonUri"],'r',encoding="utf-8") as f:
             asset = Asset.from_dict(json.loads(f.read()))
-    rootFolder = os.path.join(Config.Get().remoteAssetLibrary,asset.rootFolder)
+    rootFolder = os.path.join(Backend.Get().getAssetRootPath(),asset.rootFolder)
     
     Log(f"当前资产根目录为:{rootFolder}")
     Log(f"当前资产格式为:{asset.assetFormat.value}")
@@ -837,8 +633,8 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod
         BaseColor = None
         Normal = None
         Metallic = None
-        Opacity = None
         Translucency = None
+        Opacity = None
         Glossiness = None
         extension = ".png"
         for map in asset.assetMaterials[0].maps:
@@ -1011,50 +807,17 @@ def GetExePath():
         return False
     return exePath
 
-def checkUpdate():
-    current_exe_path = GetExePath()
-    if not current_exe_path:
-        return False
-    currentDir = os.path.dirname(current_exe_path)
-    updateExe = os.path.join(currentDir,"update.exe")
-    currentVersion = getExeVersion(current_exe_path)
-    #如果不存在更新exe或者本地exe直接跳过
-    if not os.path.exists(current_exe_path) or not os.path.exists(updateExe):
-        return False
-    files = os.listdir(UPDATE_SERVE_PATH)
-    #判断是否存在新版本文件
-    if len(files) < 1:
-        return False
-    TheNewestFile = files[0]
-    #获取最新的版本
-    for file in files:
-        if compareVersion(os.path.splitext(TheNewestFile)[0].split("_")[-1],os.path.splitext(file)[0].split("_")[-1]):
-            TheNewestFile = file
-    _,ext = os.path.splitext(TheNewestFile)
-    if ext != ".zip":
-        return False
-    TheNewestFilePath = os.path.join(UPDATE_SERVE_PATH,TheNewestFile)
-    DownloadedFilePath = os.path.join(currentDir,TheNewestFile)
-    TheNewestFileVersion = os.path.splitext(TheNewestFile)[0].split("_")[-1]
-    TempFolder = os.path.normpath(os.path.join(currentDir,"Temp"))
-    if compareVersion(currentVersion,TheNewestFileVersion):
-        w = Dialog("提示","有新版本,是否更新")
+
+def checkisBackendRunning(parent=None):
+    if Backend.Get().isBackendAvailable():
+        return True
+    else:
+        w = Dialog("提示","服务器地址不可用,请检查设置",parent=parent)
         w.setTitleBarVisible(False)
         w.setContentCopyable(True)
-        if not w.exec():
-            return False
-            #从服务器下载压缩包
-        shutil.copyfile(TheNewestFilePath,DownloadedFilePath)
-        #创建目录
-        if not os.path.exists(TempFolder):
-            os.makedirs(TempFolder)
-        #解压文件
-        with zipfile.ZipFile(DownloadedFilePath,"r") as zipRef:
-            zipRef.extractall(TempFolder)
-        #删除压缩文件
-        os.remove(DownloadedFilePath)
-        return updateExe
-    return False
+        w.exec()
+        return False
+
 
 def AddAssetDataToDataBase(asset:Asset):
         #将资产添加到资产数据库中
@@ -1075,15 +838,8 @@ def AddAssetDataToDataBase(asset:Asset):
             lods        = [lod.level for lod in asset.Lods],
             SearchWords = f"{asset.name} {asset.AssetID} {asset.category} {asset.subcategory}"+" ".join(asset.tags)
             )
-        while True:
-            if not DataBaseRemote.Get().isRemoteDataBaseInUsed():
-                DataBaseRemote.Get().UseDataBase()
-                DataBaseRemote.Get().addAssetToDB(assetToLibraryData)
-                DataBaseRemote.Get().releaseDataBase()
-                break
-            else:
-                time.sleep(5)
-
+        
+        Backend.Get().addAssetToDB(assetToLibraryData)
 
 
 class CustomWorker(QThread):
@@ -1145,6 +901,66 @@ class SocketThread(QThread):
         thread = SocketThread(parent)
         thread.start()
         return thread
+
+
+
+def ConvertAssetPathsToAbs(asset:Asset,assetLibrarypath:str):
+    assetRootPath = os.path.join(assetLibrarypath,asset.rootFolder)
+    
+    asset.rootFolder = assetRootPath
+
+    asset.JsonUri = os.path.join(assetRootPath,asset.JsonUri)
+
+    for i,lod in enumerate(asset.Lods):
+        asset.Lods[i].mesh.uri = os.path.join(assetRootPath,asset.Lods[i].mesh.uri)
+        if asset.Lods[i].normalMap.uri != "":
+            asset.Lods[i].normalMap.uri = os.path.join(assetRootPath,asset.Lods[i].normalMap.uri)
+    
+    for i,meshVar in enumerate(asset.MeshVars):
+        asset.MeshVars[i].OriginMesh.uri = os.path.join(assetRootPath,asset.MeshVars[i].OriginMesh.uri)
+        for i,lod in enumerate(asset.MeshVars[i].Lods):
+            asset.MeshVars[i].Lods[i].mesh.uri = os.path.join(assetRootPath,asset.MeshVars[i].Lods[i].mesh.uri)
+            if asset.MeshVars[i].Lods[i].normalMap.uri != "":
+                asset.MeshVars[i].Lods[i].normalMap.uri = os.path.join(assetRootPath,asset.MeshVars[i].Lods[i].normalMap.uri)
+
+    if asset.OldJson != "":
+        asset.OldJson = os.path.join(assetRootPath,asset.OldJson)
+
+    if asset.OriginMesh.uri != "":
+        asset.OriginMesh.uri = os.path.join(assetRootPath,asset.OriginMesh.uri)
+
+    if asset.ZbrushFile != "":
+        asset.ZbrushFile = os.path.join(assetRootPath,asset.ZbrushFile)
+    
+    for i,material in enumerate(asset.assetMaterials):
+        for j,map in enumerate(asset.assetMaterials[i].maps):
+            asset.assetMaterials[i].maps[j].uri = os.path.join(assetRootPath,asset.assetMaterials[i].maps[j].uri)
+
+    for i,previewImage in enumerate(asset.previewFile):
+        asset.previewFile[i] = os.path.join(assetRootPath,asset.previewFile[i])
+    
+    return asset
+
+
+
+def checkTextureUDIM(uri:str):
+    match = re.search(r'\.(\d{4})\.', uri)
+    if match:
+        return match.group(1)
+    else:
+        return False
+
+def GetUDIMTextures(uri:str):
+    textures = []
+    for i in range(1,10000):
+        udimFlag = "1{:03d}".format(i)
+        textureUri = uri.replace('udim',udimFlag)
+        if os.path.exists(textureUri):
+            textures.append(textureUri)
+        else:
+            break
+    return textures
+
 
 if __name__ == "__main__":
     exePath = "D:\Documents\ZCXCode\MyBridge\dist\MyBridge\MyBridge.exe"
