@@ -14,9 +14,6 @@ from tinydb import TinyDB, Query
 import sys
 from qfluentwidgets import Dialog
 from win32com.client import Dispatch
-import zipfile
-from app.core.config import Config
-
 from .backend import Backend
 
 from PyQt5.QtCore import QThread
@@ -72,13 +69,8 @@ class AssetType(MyBridgetGlobalEnum):
     Plant   = "Plant"
     Brush   = "brush"
 
-    
-class Format(MyBridgetGlobalEnum):
-    FBX = "Fbx"
-    Unreal = "Unreal"
-       
 class AssetSize(MyBridgetGlobalEnum):
-    Meter1 = "1 Meter"
+    Meter1  = "1 Meter"
     Meters2 = "2 Meters"
     Meters3 = "3 Meters"
     Meters4 = "4 Meters"
@@ -314,7 +306,9 @@ def readImage(filePath)->ImageFile:
     return image
 
 
-def GetTextureSize(uri:str):
+def GetTextureSize(uri:str,udim:bool=False):
+    if udim:
+        uri = uri.replace("udim","1001")
     image = readImage(uri)
     if not image:
         return False
@@ -439,10 +433,8 @@ def CopyAndRenameAsset(asset:Asset,assetLibFolder:str):
                 asset.assetMaterials[i].maps[j].name = f"{asset.AssetID}_{asset.assetMaterials[i].maps[j].type.value}.{'udim'}{asset.assetMaterials[i].maps[j].extension}"
             else:
                 asset.assetMaterials[i].maps[j].name = f"{asset.AssetID}_{asset.assetMaterials[i].maps[j].type.value}{asset.assetMaterials[i].maps[j].extension}"
+            asset.assetMaterials[i].maps[j].size = GetTextureSize(asset.assetMaterials[i].maps[j].uri,asset.assetMaterials[i].maps[j].UDIM)
             asset.assetMaterials[i].maps[j].uri = CopyFileToFolder(asset.assetMaterials[i].maps[j].uri,rootFolder,asset.assetMaterials[i].maps[j].name,False,asset.assetMaterials[i].maps[j].UDIM,asset.assetMaterials[i].maps[j].subMapCount)
-    for i in range(len(asset.assetMaterials[0].maps)):
-        asset.assetMaterials[0].maps[i].name = f"{asset.AssetID}_{asset.assetMaterials[0].maps[i].type.value}{asset.assetMaterials[0].maps[i].extension}"
-        asset.assetMaterials[0].maps[i].uri = CopyFileToFolder(asset.assetMaterials[0].maps[i].uri,rootFolder,asset.assetMaterials[0].maps[i].name)
     for i in range(len(asset.previewFile)):
         asset.previewFile[i] = scaleImage(asset.previewFile[i])
         asset.previewFile[i] = CopyFileToFolder(asset.previewFile[i],rootFolder,f"{asset.AssetID}_Preview_{i}.jpg",True)
@@ -522,16 +514,77 @@ def copyMapToFolder(map:AssetMap,folder:str)->AssetMap:
     shutil.copy(map.uri,newUri)
     map.uri = newUri
     return map
-def GenRoughnessMap(glossinessUri,assetID:str,dirName:str,extension:str):
-    roughness_uri = os.path.join(dirName,f"{assetID}_roughness{extension}")
+
+def GenRoughnessMapUDIM(glossinessUri,assetID:str,dirName:str,extension:str,udim:bool = False):
+    if udim:
+        uris = GetUDIMTextures(glossinessUri)
+    else:
+        uris = [glossinessUri]
+    new_uris = []
+    for i,uri in enumerate(uris): 
+        udimFlag = ".1{:03d}".format(i+1)   
+        new_uris.append(GenRoughnessMap(uri,assetID,dirName,extension,udim,udimFlag))
+def GenRoughnessMap(glossinessUri,assetID:str,dirName:str,extension:str,udimflag:str=""):
+    roughness_uri = os.path.join(dirName,f"{assetID}_roughness{udimflag}{extension}")
     if os.path.exists(roughness_uri):
         return roughness_uri
     img_gloss = readImage(glossinessUri).convert("L")
     img_roughness =Image.eval(img_gloss,lambda c: 255 - c)
     img_roughness.save(roughness_uri)
     return roughness_uri
-def GenARMMap(ao:str,roughness:str,metallic:str,assetID:str,opacity:str,Translucency:str,extension:str,type:AssetType,dirName:str)->str:
-    armUri = os.path.join(dirName,f"{assetID}_ARM{extension}")
+
+def GenARMMapUDIM(ao:str,roughness:str,metallic:str,assetID:str,opacity:str,Translucency:str,extension:str,type:AssetType,dirName:str,udim:bool=False):
+    arms_uris = []
+    if udim:
+        roughness_uris = GetUDIMTextures(roughness)
+        length = len(roughness_uris)
+        if ao:
+            ao_uris = GetUDIMTextures(ao)
+        else:
+            ao_uris = [None] * length
+
+        if metallic:
+            metallic_uris = GetUDIMTextures(metallic)
+        else:
+            metallic_uris = [None] * length
+
+        if opacity:
+            opacity_uris = GetUDIMTextures(opacity)
+        else:
+            opacity_uris = [None] * length
+
+        if Translucency:
+            Translucency_uris = GetUDIMTextures(Translucency)
+        else:
+            Translucency_uris = [None] * length
+    else:
+        roughness_uris = [roughness]
+        if ao:
+            ao_uris = [ao]
+        else:
+            ao_uris = [None]
+
+        if metallic:
+            metallic_uris = [metallic]
+        else:
+            metallic_uris = [None]
+
+        if opacity:
+            opacity_uris = [opacity]
+        else:
+            opacity_uris = [None]
+
+        if Translucency:
+            Translucency_uris =[Translucency]
+        else:
+            Translucency_uris = [None] 
+    for i,uri in enumerate(roughness_uris): 
+        udimFlag = ".1{:03d}".format(i+1)
+        arms_uris.append(GenARMMap(ao_uris[i],roughness_uris[i],metallic_uris[i],assetID,opacity_uris[i],Translucency_uris[i],extension,type,dirName,udimFlag))
+    return arms_uris
+
+def GenARMMap(ao:str,roughness:str,metallic:str,assetID:str,opacity:str,Translucency:str,extension:str,type:AssetType,dirName:str,udimflag:str="")->str:
+    armUri = os.path.join(dirName,f"{assetID}_ARM{udimflag}{extension}")
     if os.path.exists(armUri):
         return armUri
     
@@ -569,6 +622,15 @@ def GenARMMap(ao:str,roughness:str,metallic:str,assetID:str,opacity:str,Transluc
     else:
         pass
     return armUri
+def ResizeTextureByStringUDIM(uri:str,rootDir:str,size:str,UDIM:bool=False):
+    if UDIM:
+        uris = GetUDIMTextures(uri)
+    else:
+        uris = [uri]
+    new_uris = []
+    for uri in uris:
+        new_uris.append(ResizeTextureByString(uri,rootDir,size))
+    return new_uris
 
 def ResizeTextureByString(uri:str,rootDir:str,size:str):
     Log(f"尝试缩放贴图:{uri}")
@@ -626,8 +688,6 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod
     Log(f"当前资产根目录为:{rootFolder}")
     Log(f"当前资产格式为:{asset.assetFormat.value}")
     if asset.assetFormat == AssetFormat.FBX:
-        #获取所有需要的贴图
-        size = list(TextureSize.__members__.values())[sizeIndex].value
         Ao = None
         Roughness = None
         BaseColor = None
@@ -636,15 +696,21 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod
         Translucency = None
         Opacity = None
         Glossiness = None
+        meshUri = None
+        armUri = None
+        udim = False
+        #获取所有需要的贴图
+        size = list(TextureSize.__members__.values())[sizeIndex].value
         extension = ".png"
         for map in asset.assetMaterials[0].maps:
             if map.uri == "":
                 continue
             mapUri = os.path.join(rootFolder,map.uri)
-            if not os.path.exists(mapUri):
-                continue
+            if map.UDIM:
+                udim = True
             if map.size.value != size:
-                mapUri = ResizeTextureByString(mapUri,os.path.join(rootFolder,f"Thumbs/{size}"),size)
+                # 这里如果贴图是UDIM会把关键词udim替换为1001
+                mapUri = ResizeTextureByStringUDIM(mapUri,os.path.join(rootFolder,f"Thumbs/{size}"),size,map.UDIM)[0]
                 if not mapUri:
                     continue
             if map.type== AssetMapType.Albedo:
@@ -690,29 +756,41 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod
                     Log(f"不存在其他法线贴图")
 
         if not Roughness and Glossiness:
-            Roughness = GenRoughnessMap(Glossiness,asset.AssetID,os.path.dirname(BaseColor),extension)
+            Roughness = GenRoughnessMapUDIM(Glossiness,asset.AssetID,os.path.dirname(BaseColor),extension,udim)[0]
         if not (Roughness and BaseColor and Normal):
             return False
         elif asset.type == AssetType.Decal and not Opacity:
             return False
         elif asset.type == AssetType.Plant and not(Opacity and Translucency):
             return False
-        armUri = GenARMMap(Ao,Roughness,Metallic,asset.AssetID,Opacity,Translucency,extension,asset.type,os.path.dirname(BaseColor))
+        armUri = GenARMMapUDIM(Ao,Roughness,Metallic,asset.AssetID,Opacity,Translucency,extension,asset.type,os.path.dirname(BaseColor),udim)[0]
         if not armUri:
             return False
+        message = dict(
+            name = asset.name.replace(" ","_"),#去除资产名称中的空格
+            AssetID = asset.AssetID,
+            assetFormat = asset.assetFormat.value,
+            assetType = asset.type.value,
+            baseColor = BaseColor,
+            normal = Normal,
+            arm = armUri,
+            mesh = meshUri,
+            udim = str(udim)
+        )
     elif asset.assetFormat == AssetFormat.UnrealEngine:
-        pass
-
-    message = dict(
-        name = asset.name.replace(" ","_"),#去除资产名称中的空格
-        AssetID = asset.AssetID,
-        assetFormat = asset.assetFormat.value,
-        assetType = asset.type.value,
-        baseColor = BaseColor,
-        normal = Normal,
-        arm = armUri,
-        mesh = meshUri
-    )
+        meshUri = os.path.join(Backend.Get().getAssetRootPath(),asset.AssetID,asset.AssetID)
+        message = dict(
+            name = asset.name.replace(" ","_"),#去除资产名称中的空格
+            AssetID = asset.AssetID,
+            assetFormat = asset.assetFormat.value,
+            assetType = asset.type.value,
+            baseColor = "",
+            normal = "",
+            arm = "",
+            mesh = meshUri,
+            udim = str(False)
+        )
+    print(message)
     Log("将以下消息发送到UE中")
     print(message)
     if sendStringToUE(json.dumps(message),address):
@@ -951,10 +1029,14 @@ def checkTextureUDIM(uri:str):
         return False
 
 def GetUDIMTextures(uri:str):
+    if "udim" in uri:
+        flag = 'udim'
+    elif '1001' in uri:
+        flag = '1001'
     textures = []
     for i in range(1,10000):
         udimFlag = "1{:03d}".format(i)
-        textureUri = uri.replace('udim',udimFlag)
+        textureUri = uri.replace(flag,udimFlag)
         if os.path.exists(textureUri):
             textures.append(textureUri)
         else:

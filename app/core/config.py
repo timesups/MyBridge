@@ -14,7 +14,7 @@ class Config():
         self.socketSendPort = 54321
         self.exportTextureSizeIndex = 0
         self.exportLodIndex = 0
-        self.backendAddress = "http://127.0.0.1:80"
+        self.backendAddress = "http://192.168.3.133:5050"
 
         self.loadConfig()
         self.__createFolders()

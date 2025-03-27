@@ -700,8 +700,12 @@ class AssetsEditInterface(FrameLessFloatingWindow):
         layoutButtons.setAlignment(Qt.AlignmentFlag.AlignRight)
         pb_save = PushButton(FIF.SAVE,"保存",widgetButtons)
         pb_save.clicked.connect(self.save_asset)
-
         layoutButtons.addWidget(pb_save)
+
+        pb_close = PushButton(FIF.SAVE,"关闭",widgetButtons)
+        pb_close.clicked.connect(self.close)
+        layoutButtons.addWidget(pb_close)
+    
     def save_asset(self):
         asset = self.assetsImportData.generateAsset()
         if not asset:

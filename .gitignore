@@ -3,3 +3,5 @@ MyBridgeWidget/
 /build
 /dist
 *.spec
+version_info.txt
+installer_pack.iss

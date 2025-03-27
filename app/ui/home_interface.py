@@ -342,6 +342,7 @@ class MySmoothScrollArea(SmoothScrollArea):
         pass
 
 class ItemCardView(QWidget,Translator):
+    assetDelete = pyqtSignal()
     def __init__(self,parent=None):
         super().__init__(parent=parent)
         # values
@@ -545,6 +546,7 @@ class ItemCardView(QWidget,Translator):
             ut.removeFolder(libraryAssetData["rootFolder"])
             Backend.Get().deleteAssetFromDB(libraryAssetData["AssetID"])
             self.reloadItems()
+        self.assetDelete.emit()
     def exportToUnreal(self):
         if ut.sendAssetToUE(
             self.filteredAssetDatas[self.currentSelectedIndex],
@@ -605,6 +607,7 @@ class HomeInterface(QWidget):
         self.rootLayout = QVBoxLayout(self)
         self.item_header = ItemHeader(self)
         self.item_card_view = ItemCardView(self)
+        self.item_card_view.assetDelete.connect(self.FilterCardsPerLevel)
         self.__initWidget()
         self.__initConnection()
         self.__setQss()
