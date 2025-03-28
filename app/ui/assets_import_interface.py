@@ -67,6 +67,7 @@ class DirectiorySelectGroup(QWidget):
         self.texMaxWidth = textMaxWidth
         self.rootLayout = QHBoxLayout(self)
         self.label = QLabel(self,text=text)
+        self.setObjectName(text)
         #self.checkbox = CheckBox(self)
         self.lineEdit = SelectFileLineEdit(self)
         self.lineEdit.textChanged.connect(self.checkUDIM)
@@ -432,31 +433,11 @@ class AssetsImportData(QWidget,Translator):
         self.scrollWidgetLayout.addWidget(widget_add_lod_button)
 
 
-        widget_lods = QWidget(self)
-        self.layout_lods = QVBoxLayout(widget_lods)
+        self.widget_lods = QWidget(self)
+        self.layout_lods = QVBoxLayout(self.widget_lods)
         self.layout_lods.setContentsMargins(0,0,0,0)
 
-        self.scrollWidgetLayout.addWidget(widget_lods)
-
-
-        #self.scrollWidgetLayout.addWidget(common.QLine.HLine(self))
-
-        #self.scrollWidgetLayout.addWidget(TitleLabel("模型变体",self))
-
-
-        #widget_add_mesh_variant = QWidget(self)
-        #layout_add_mesh_variant = QHBoxLayout(widget_add_mesh_variant)
-        #self.scrollWidgetLayout.addWidget(widget_add_mesh_variant)
-
-        #layout_add_mesh_variant.setContentsMargins(0,0,0,0)
-        #layout_add_mesh_variant.setAlignment(Qt.AlignmentFlag.AlignRight)
-
-        #pb_add_mesh_variant = PushButton(icon=FIF.ADD,text="添加模型变体",parent=self)
-        #pb_add_mesh_variant.clicked.connect(self.addMeshVariant)
-        #layout_add_mesh_variant.addWidget(pb_add_mesh_variant)
-
-        #widget_mesh_variant = QWidget(self)
-        #self.layout_mesh_variant = QVBoxLayout(widget_mesh_variant)
+        self.scrollWidgetLayout.addWidget(self.widget_lods)
 
     def __loadCombox(self):
         self.combox_type.addItems([self.tra(item.value) for item in list(AssetType.__members__.values())])
@@ -465,8 +446,8 @@ class AssetsImportData(QWidget,Translator):
         self.combox_subcategory.clear()
         self.combox_subcategory.addItems(category[c])
     def addLod(self,lodPath:str="",normalPath:str = "")->DirectiorySelectGroup:
-        lod_group = DirectiorySelectGroup(self,f"LOD {self.lodsIndics}",self.maxTextWidth,title="选择一个模型",filter="fbx file(*.fbx)",UDIM=False)
-        texture_group = DirectiorySelectGroup(self,f"LOD {self.lodsIndics} Normal",self.maxTextWidth,title="选择一张法线贴图",filter="图像(*.jpg *.png *.exr)",UDIM=False)
+        lod_group = DirectiorySelectGroup(self.widget_lods,f"LOD {self.lodsIndics}",self.maxTextWidth,title="选择一个模型",filter="fbx file(*.fbx)",UDIM=False)
+        texture_group = DirectiorySelectGroup(self.widget_lods,f"LOD {self.lodsIndics} Normal",self.maxTextWidth,title="选择一张法线贴图",filter="图像(*.jpg *.png *.exr)",UDIM=False)
         lod_group.setText(lodPath)
         texture_group.setText(normalPath)
         self.layout_lods.addWidget(lod_group)
@@ -661,7 +642,27 @@ class AssetsImportData(QWidget,Translator):
             asset.OriginMesh.extension = os.path.splitext(asset.OriginMesh.uri)[1]
             if self.zbrushFile.text() != "":
                 asset.ZbrushFile = self.zbrushFile.text()
-            #lod_groups = self.findChildren(DirectiorySelectGroup)
+            lod_normal_groups = self.widget_lods.findChildren(DirectiorySelectGroup)
+            lod_groups = []
+            normal_groups = []
+            for group in lod_normal_groups:
+                if "normal" in group.objectName().lower():
+                    normal_groups.append(group)
+                else:
+                    lod_groups.append(group)
+            for i,lod_group in enumerate(lod_groups):
+                lod = utility.LOD()
+                lod.level = int(lod_group.objectName().split(" ")[-1])
+                lod_group.objectName()
+                lod.mesh.uri = lod_group.text()
+                lod.mesh.name = os.path.basename(lod.mesh.uri)
+                _,lod.mesh.extension = os.path.splitext(lod.mesh.name)
+                lod.normalMap.uri = normal_groups[i].text()
+                lod.normalMap.name = os.path.basename(lod.normalMap.uri)
+                lod.normalMap.type = utility.AssetMapType.Normal
+                _,lod.normalMap.extension = os.path.splitext(lod.normalMap.name)
+                lod.normalMap.size = utility.GetTextureSize(lod.normalMap.uri)
+                asset.Lods.append(copy.deepcopy(lod))
         elif asset.type == AssetType.Surface or asset.type == AssetType.Decal:
             pass
         else:
@@ -893,13 +894,14 @@ class AssetsImportInterface(QWidget):
         if not asset:
             return
         
-        worker = common.CommonWorker(self)
-        worker.fun = lambda : self.importAssetToLibraryThread(asset)
-        worker.overed.connect(self.import_over)
-        worker.start()
-        self.setDisabled(True)
-        self.progressRing.move(int(self.width()/2),int(self.height()/2))
-        self.progressRing.show()
+        # worker = common.CommonWorker(self)
+        # worker.fun = lambda : self.importAssetToLibraryThread(asset)
+        # worker.overed.connect(self.import_over)
+        # worker.start()
+        # self.setDisabled(True)
+        # self.progressRing.move(int(self.width()/2),int(self.height()/2))
+        # self.progressRing.show()
+        self.importAssetToLibraryThread(asset)
 
     def importAssetToLibraryThread(self,asset:Asset):
         import time

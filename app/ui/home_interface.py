@@ -149,6 +149,7 @@ class InfoPanel(QFrame,Translator):
         super().__init__(parent=parent)
         self.setFixedWidth(400)
         self.shadowWidth = 20
+        self.maxAssetTitleLength = 15
 
         self.rootLayout = QVBoxLayout(self)
 
@@ -228,6 +229,10 @@ class InfoPanel(QFrame,Translator):
 
     def setPanelInfo(self,imagePath:str,name:str,type:str,tags:list[str],category,subcategory,lods:list[int]=[]):
         self.titleImage.setImgae(imagePath)
+
+        #裁切名称长度
+        if len(name) > self.maxAssetTitleLength:
+            name = name[0:self.maxAssetTitleLength] + "..."
         self.titleLabel.setText(name)
         self.typeLabel.setText(type)
 

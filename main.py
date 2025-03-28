@@ -79,7 +79,7 @@ if __name__ == "__main__":
     window.show()
     Log("程序启动完成","Main")
     sys.exit(app.exec_())
-
+    
 
 
 
