@@ -55,18 +55,15 @@ class SettingInterface(QWidget,Translator):
         )
         self.card_server_address.editingFinished.connect(self.__setBackendAddress)
 
+        version = ut.get_current_vesrion()
 
-        version = ""
-        exePath = ut.GetExePath()
-        if exePath:
-            version = ut.getExeVersion(exePath)
 
         self.aboutGroup = SettingCardGroup("关于", self)
         self.aboutCard = PrimaryPushSettingCard(
             self.tr(''),
             FIF.INFO,
             self.tr('About'),
-            '© ' + self.tr('Copyright') + f"  2024,ZCX. " +
+            '© ' + self.tr('Copyright') + f"  2025,zynn. " +
             self.tr('Version') + " " + version,
             self.aboutGroup
         )

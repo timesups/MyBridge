@@ -6,7 +6,8 @@ version_info_flage = "vsinfo"
 version_info_file = "version_info.txt"
 installer_file = "installer_pack.iss"
 iscc_exe = "D:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-
+installer_file_path = "dist/MyBridge.exe"
+mybridge_build_path = "dist/MyBridge"
 def get_version():
     readme = os.path.join(os.path.dirname(__file__),"Readme.md")
     with open(readme,'r',encoding='utf-8') as f:
@@ -67,6 +68,9 @@ def pack_mybridge_by_cz_freeze(debug=False):
         executables = executables
     )
 def pack_instaaller():
+    if not os.path.exists(mybridge_build_path):
+        print("打包的程序文件不存在,安装包生成失败")
+        return
     import subprocess
     version = get_version()
     installer_template = os.path.join(os.path.dirname(__file__),"other/installer_template.iss")
@@ -78,19 +82,43 @@ def pack_instaaller():
     subprocess.call(f'"{iscc_exe}" installer_pack.iss',cwd=os.path.dirname(__file__))
 
 
+def upload_installer():
+    if not os.path.exists(installer_file_path):
+        print("安装包文件不存在上传失败")
+        return 
+    import requests
+    url = f"http://192.168.3.133:5050/update/upload/{'.'.join(get_version())}"
+    with open(installer_file_path,'rb') as f:
+        files = {'file':(installer_file_path,f)}
+        r = requests.post(url,files=files)
+
 if __name__ == '__main__':
-    debug = False
+    isdebug = False
+    isinstaller = False
+    isupload = False
+    isbuild = False
+    if "-build" in sys.argv:
+        isbuild = True
     if "-debug" in sys.argv:
-        debug = True
+        isdebug = True
+    if "-installer" in sys.argv:
+        isinstaller = True
+    if "-upload" in sys.argv:
+        isupload = True
     #清理上次生成的内容
     if os.path.exists("dist"):
         shutil.rmtree("dist")
 
-    #打包软件
-    pack_mybridge_by_pyinstaller(debug)
-
-    if not debug:
-        #在非Debug模式下打包安装包
+    if isbuild:
+        #打包软件
+        pack_mybridge_by_pyinstaller(isdebug)
+    #打包安装包
+    if isinstaller:
         pack_instaaller()
+    #上传安装包
+    if isupload:
+        upload_installer()
+
+
     #执行清理
     clean()

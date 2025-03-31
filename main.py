@@ -5,6 +5,9 @@ from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
+from PyQt5.QtWidgets import QMessageBox
+
+
 import sys
 import app.resource.resource_rc
 from app.core.Log import Log
@@ -12,8 +15,12 @@ from app.ui.home_interface import HomeInterface
 from app.ui.setting_interface import SettingInterface
 from app.core.translator import Translator
 import app.core.utility as ut
+from app.core.backend import Backend
 
 from app.ui.assets_import_interface import AssetsImportInterface
+
+
+import subprocess
 
 class MainWindow(FluentWindow,Translator):
     def __init__(self):
@@ -47,8 +54,6 @@ class MainWindow(FluentWindow,Translator):
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
     def closeEvent(self, e):
         Log("主窗口已经关闭","Main")
-         #关闭socket服务
-        # self.socket.stop()
         return super().closeEvent(e)
     def moveEvent(self, a0):
         try:
@@ -69,10 +74,20 @@ class MainWindow(FluentWindow,Translator):
 
 
 if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    newest_version = Backend.Get().check_update()
     if ut.get_pid("MyBridge.exe"):
         Log("已经存在运行的实例,本实例退出","Main")
-        sys.exit(-1)
-    app = QApplication(sys.argv)
+        sys.exit(0)
+    if newest_version:
+        reply = QMessageBox.question(None,"确认","发现新版本,是否更新?")
+        if reply == 16384:
+            newest_version_path = Backend.Get().download_version(newest_version)
+            subprocess.Popen([newest_version_path])
+            Log("下载完成,开始更新","main")
+            sys.exit(0)
+        else:
+            pass
     Log("app创建成功","Main")
     toggleTheme()
     window = MainWindow()

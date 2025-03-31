@@ -980,7 +980,12 @@ class SocketThread(QThread):
         thread.start()
         return thread
 
-
+def get_current_vesrion():
+    version = ""
+    exePath = GetExePath()
+    if exePath:
+        version = getExeVersion(exePath)
+    return version
 
 def ConvertAssetPathsToAbs(asset:Asset,assetLibrarypath:str):
     assetRootPath = os.path.join(assetLibrarypath,asset.rootFolder)
