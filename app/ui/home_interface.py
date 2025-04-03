@@ -17,7 +17,6 @@ from app.core.style_sheet import StyleSheet
 from app.core.common_widgets import scalePixelMap,scaleMap,StringButton,LoadPixmapSafely
 import app.core.utility as ut
 from app.core.config import Config
-import json
 
 from app.core.translator import Translator
 from app.core.icons import Icons
@@ -451,16 +450,7 @@ class ItemCardView(QWidget,Translator):
                 self.currentLoadedCardCount+=1
             else:
                 return
-    def searchAssets(self,keyword:str):
-        self.clearAllCards()
-        self.currentLoadedCardCount = 0
-        datas = self.loadItemFromDataBaseAndMakeItAbs()
-        self.filteredAssetDatas = []
-        for data in datas:
-            if keyword.lower() in data["SearchWords"].lower():
-                self.filteredAssetDatas.append(data)
-        self.loadItems()
-    def  loadItemFromDataBaseAndMakeItAbs(self):
+    def loadItemFromDataBaseAndMakeItAbs(self):
         if Backend.Get().isBackendAvailable():
             datas = Backend.Get().getAssetsList()
             remoteAssetLibrary = Backend.Get().getAssetRootPath()
@@ -472,32 +462,13 @@ class ItemCardView(QWidget,Translator):
             data["previewFile"] = os.path.join(remoteAssetLibrary,data["rootFolder"],data["previewFile"])
             data["jsonUri"] =os.path.join(remoteAssetLibrary,data["rootFolder"],data["jsonUri"])
             newDatas.append(data)
+        self.loadedAsset = newDatas
         return newDatas
-    def clearSearch(self):
-        self.clearAllCards()
-        self.currentLoadedCardCount = 0
-        self.filteredAssetDatas = self.loadItemFromDataBaseAndMakeItAbs()
-        self.loadItems()
-    def filterByType(self,index):
-        index -= 1
-        if index >= 0:
-            type = list(ut.AssetType.__members__.values())[index]
-            self.clearAllCards()
-            self.currentLoadedCardCount = 0
-            datas = self.loadItemFromDataBaseAndMakeItAbs()
-            self.filteredAssetDatas = []
-            for data in datas:
-                if type.value == data["type"]:
-                    self.filteredAssetDatas.append(data)
-            self.loadItems()
-            pass
-        else:
-            self.clearSearch()
     def FilterCards(self,type_index:int,category_index:int,subcategory_index:int,search_key_word:str):
         #load all assets
         self.clearAllCards()
         self.filteredAssetDatas = []
-        for assetData in self.loadItemFromDataBaseAndMakeItAbs():
+        for assetData in self.loadedAsset:
             if type_index >= 1:
                 type = list(ut.AssetType.__members__.values())[type_index-1]
                 if type.value != assetData['type']:
@@ -507,7 +478,7 @@ class ItemCardView(QWidget,Translator):
                 if category != assetData['category']:
                     continue
             if subcategory_index >=1:
-                subcategory = ut.GetCategorys(1)[subcategory_index-1]
+                subcategory = ut.GetSubCategorys(category_index-1)[subcategory_index-1]
                 if subcategory != assetData['subcategory']:
                     continue
             if search_key_word != "":
@@ -538,7 +509,6 @@ class ItemCardView(QWidget,Translator):
         editInterface = AssetsEditInterface(self.parentWidget().parentWidget().parentWidget().parentWidget())
         editInterface.loadDataFromAsset(libraryAssetData)
         editInterface.show()
-        
     def goToFile(self,index:int):
         libraryAssetData = self.filteredAssetDatas[index]
         os.startfile(os.path.normpath(libraryAssetData["rootFolder"]))
@@ -604,8 +574,6 @@ class EidtInterface(QWidget):
         self.resize(800,600)
 
 
-
-
 class HomeInterface(QWidget):
     def __init__(self,parent=None):
         super().__init__(parent)
@@ -632,7 +600,7 @@ class HomeInterface(QWidget):
         self.item_card_view.infoPanel.onTagClicked.connect(self.setSearchText)
     def setSearchText(self,text):
         self.item_header.searchBar.setText(text)
-        self.item_card_view.searchAssets(text)
+        self.FilterCardsPerLevel()
     def FilterCardsPerLevel(self,*arg):
         type_index = self.item_header.combox_type.currentIndex()
         category_index = self.item_header.combox_category.currentIndex()

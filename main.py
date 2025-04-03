@@ -75,10 +75,14 @@ class MainWindow(FluentWindow,Translator):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    newest_version = Backend.Get().check_update()
+    Log("app创建成功","Main")
+    #检查是否存在实例
     if ut.get_pid("MyBridge.exe"):
         Log("已经存在运行的实例,本实例退出","Main")
         sys.exit(0)
+
+    #检查更新
+    newest_version = Backend.Get().check_update()
     if newest_version:
         reply = QMessageBox.question(None,"确认","发现新版本,是否更新?")
         if reply == 16384:
@@ -88,14 +92,15 @@ if __name__ == "__main__":
             sys.exit(0)
         else:
             pass
-    Log("app创建成功","Main")
+        
+    # 启动窗口
+
     toggleTheme()
     window = MainWindow()
     window.show()
     Log("程序启动完成","Main")
     sys.exit(app.exec_())
     
-
 
 
 

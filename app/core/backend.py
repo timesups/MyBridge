@@ -10,7 +10,7 @@ class Backend():
         pass
     def isBackendAvailable(self) -> bool:
         try:
-            response = requests.get(Config.Get().backendAddress)
+            response = requests.get(Config.Get().backendAddress,timeout=3)
             return True
         except:
             return False
