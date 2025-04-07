@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (QApplication,QWidget,
 from PyQt5.QtGui import (QCloseEvent, QContextMenuEvent, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QPixmap,QColor, 
                          QResizeEvent,QTransform)
-from PyQt5.QtCore import QEvent, QRect,Qt,pyqtSignal,QThread
+from PyQt5.QtCore import QEvent, QRect,Qt,pyqtSignal,QThread,QMutex
 import pyperclip
 
 import os
@@ -35,6 +35,30 @@ class ImageScaleWorker(QThread):
     image = None
     def run(self):
         self.image = scalePixelMap(self.width,self.height,self.imageOrigin)
+
+
+class SharedValues():
+    cards = []
+
+mutex = QMutex()
+
+
+
+class GenrateCardWorker(QThread):
+    index = None
+    imagepath = None
+    name = None
+    assetID = None
+    def run(self):
+        index = len(self.cards)
+        itemCard = ItemCard(self,index,self.imagepath,self.name,self.assetID)
+        mutex.lock()
+        try:
+            SharedValues.cards.append(itemCard)
+        finally:
+            mutex.unlock()
+
+
 
 class ItemCard(QFrame):
     clicked = pyqtSignal(int)
@@ -371,7 +395,6 @@ class ItemCardView(QWidget,Translator):
         # methods
         self.__initWidget()
 
-
         self.loadItems()
     def __initWidget(self):
 
@@ -407,10 +430,7 @@ class ItemCardView(QWidget,Translator):
         self.infoPanel.close()
 
         # 从数据库加载数据
-        self.filteredAssetDatas = self.loadItemFromDataBaseAndMakeItAbs()
-    def loadItemsByScrollBar(self,value):
-        if value/(self.scrollArea.verticalScrollBar().maximum()+0.1) >= 0.98:
-            self.loadItems()
+        self.reloadItems()
     def setPerCardSize(self,size):
         for card in self.cards:
             card.setSize(size)
@@ -443,6 +463,9 @@ class ItemCardView(QWidget,Translator):
             card.deleteLater()
             card = None
         self.cards = []
+    def loadItemsByScrollBar(self,value):
+        if value/(self.scrollArea.verticalScrollBar().maximum()+0.1) >= 0.98:
+            self.loadItems()
     def loadItems(self):
         for i in range(self.currentLoadedCardCount,self.currentLoadedCardCount+self.LoadCardCountPerTimes):
             if i < len(self.filteredAssetDatas):
@@ -462,13 +485,13 @@ class ItemCardView(QWidget,Translator):
             data["previewFile"] = os.path.join(remoteAssetLibrary,data["rootFolder"],data["previewFile"])
             data["jsonUri"] =os.path.join(remoteAssetLibrary,data["rootFolder"],data["jsonUri"])
             newDatas.append(data)
-        self.loadedAsset = newDatas
+        self.loadedAssets = newDatas
         return newDatas
     def FilterCards(self,type_index:int,category_index:int,subcategory_index:int,search_key_word:str):
         #load all assets
         self.clearAllCards()
         self.filteredAssetDatas = []
-        for assetData in self.loadedAsset:
+        for assetData in self.loadedAssets:
             if type_index >= 1:
                 type = list(ut.AssetType.__members__.values())[type_index-1]
                 if type.value != assetData['type']:
@@ -488,12 +511,10 @@ class ItemCardView(QWidget,Translator):
         self.currentLoadedCardCount = 0
         self.loadItems()
     def reloadItems(self):
+        self.loadItemFromDataBaseAndMakeItAbs()
         self.clearAllCards()
         self.currentLoadedCardCount = 0
-        datas = self.loadItemFromDataBaseAndMakeItAbs()
-        self.filteredAssetDatas = []
-        for data in datas:
-            self.filteredAssetDatas.append(data)
+        self.filteredAssetDatas = self.loadedAssets
         self.loadItems()
     def addItemCard(self,imagepath:str,name:str,assetID:str):
         index = len(self.cards)

@@ -76,7 +76,7 @@ class MainWindow(FluentWindow,Translator):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     Log("app创建成功","Main")
-    #检查是否存在实例
+    # 检查是否存在实例
     if ut.get_pid("MyBridge.exe"):
         Log("已经存在运行的实例,本实例退出","Main")
         sys.exit(0)

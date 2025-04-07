@@ -719,6 +719,8 @@ class AssetsEditInterface(FrameLessFloatingWindow):
         self.currentOriginalAsset.subcategory = asset.subcategory
 
         utility.update_asset(self.currentOriginalAsset,Backend.Get().getAssetRootPath())
+        self.close()
+        self.deleteLater()
 
         
     def __setQss(self):

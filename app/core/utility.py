@@ -378,8 +378,8 @@ def MakeAssetByData(datas:dict)->Asset:
 
 def update_asset(asset:Asset,assetLibFolder:str):
     #更新json文件
-    rootFolder = os.path.join(assetLibFolder,f"{asset.AssetID}")
-    JsonUri_abs = os.path.join(rootFolder,f"{asset.AssetID}.json")
+    rootFolder = os.path.join(assetLibFolder,asset.rootFolder)
+    JsonUri_abs = os.path.join(rootFolder,asset.JsonUri)
     with open(JsonUri_abs,'w+',encoding='utf-8') as f:
         f.write(json.dumps(asset.to_dict()))
     #更新数据库
@@ -504,8 +504,9 @@ def sendStringToUE(string:str,address:tuple[str,int]):
     try:
         client_socket.connect(address)
         client_socket.sendall(string.encode())
+        queueLength = int(client_socket.recv(1024).decode())
         client_socket.close()
-        return True
+        return queueLength
     except:
         return False
     
@@ -522,7 +523,10 @@ def GenRoughnessMapUDIM(glossinessUri,assetID:str,dirName:str,extension:str,udim
         uris = [glossinessUri]
     new_uris = []
     for i,uri in enumerate(uris): 
-        udimFlag = ".1{:03d}".format(i+1)   
+        if udim:
+            udimFlag = ".1{:03d}".format(i+1)
+        else:
+            udimFlag = ""
         new_uris.append(GenRoughnessMap(uri,assetID,dirName,extension,udim,udimFlag))
 def GenRoughnessMap(glossinessUri,assetID:str,dirName:str,extension:str,udimflag:str=""):
     roughness_uri = os.path.join(dirName,f"{assetID}_roughness{udimflag}{extension}")
@@ -579,7 +583,10 @@ def GenARMMapUDIM(ao:str,roughness:str,metallic:str,assetID:str,opacity:str,Tran
         else:
             Translucency_uris = [None] 
     for i,uri in enumerate(roughness_uris): 
-        udimFlag = ".1{:03d}".format(i+1)
+        if udim:
+            udimFlag = ".1{:03d}".format(i+1)
+        else:
+            udimFlag = ""
         arms_uris.append(GenARMMap(ao_uris[i],roughness_uris[i],metallic_uris[i],assetID,opacity_uris[i],Translucency_uris[i],extension,type,dirName,udimFlag))
     return arms_uris
 
@@ -793,8 +800,9 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod
     print(message)
     Log("将以下消息发送到UE中")
     print(message)
-    if sendStringToUE(json.dumps(message),address):
-        Log("消息发送成功")
+    flag = sendStringToUE(json.dumps(message),address)
+    if flag:
+        Log(f"消息发送成功,消息队列长度为{flag}")
         return True
     else:
         Log("消息发送失败")
