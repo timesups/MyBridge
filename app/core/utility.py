@@ -388,6 +388,9 @@ def update_asset(asset:Asset,assetLibFolder:str):
     Backend.Get().changeAsset(asset.AssetID,"type",asset.type.value)
     Backend.Get().changeAsset(asset.AssetID,"category",asset.category)
     Backend.Get().changeAsset(asset.AssetID,"subcategory",asset.subcategory)
+    Backend.Get().changeAsset(asset.AssetID,"subcategory",asset.subcategory)
+    SearchWords = f"{asset.name} {asset.AssetID} {asset.category} {asset.subcategory}"+" ".join(asset.tags)
+    Backend.Get().changeAsset(asset.AssetID,"SearchWords",SearchWords)
 
 def CopyAndRenameAsset(asset:Asset,assetLibFolder:str):
     Log(f"Start to move asset {asset.name}","ImportAsset")

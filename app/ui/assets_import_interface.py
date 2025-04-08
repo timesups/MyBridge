@@ -1,20 +1,13 @@
 # coding: utf-8
-from qfluentwidgets import (PushButton,SmoothScrollArea,ComboBox,
+from qfluentwidgets import (PushButton,SmoothScrollArea,
                             TitleLabel,CheckBox,LineEdit,
-                            LineEditButton,
-                            InfoBar,InfoBarPosition,FlowLayout,Dialog,
+                            LineEditButton,FlowLayout,
                             ToolButton,IndeterminateProgressRing)
-from qframelesswindow import FramelessDialog
 from qfluentwidgets import FluentIcon as FIF
-from PyQt5.QtWidgets import (QApplication,QWidget,QFrame,
-                             QHBoxLayout,QVBoxLayout,
-                             QLabel,QLineEdit,QTabWidget,
-                             QFileDialog,QTabBar,QToolButton)
-from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
-                         QBrush,QPainter,QImage,QPixmap,QColor, 
-                         QResizeEvent,QPalette)
-from PyQt5.QtCore import QObject, QSize,pyqtSignal
-from PyQt5.QtCore import QRect,Qt,QPoint,QEasingCurve,QThread
+from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QLabel,
+                             QFileDialog,QToolButton)
+from PyQt5.QtCore import QSize,pyqtSignal
+from PyQt5.QtCore import Qt,QPoint
 import copy
 import os
 import json
@@ -24,12 +17,11 @@ from app.core.translator import Translator
 from app.core.style_sheet import StyleSheet
 from ..core.common_widgets import scaleMap
 import app.core.common_widgets as common
-from app.core.utility import category,GetCategorys,GetParentsCategory,AssetSize,AssetType,ClassifyFilesFormFolder,MakeAssetByData,Asset
+from app.core.utility import category,GetCategorys,AssetType,ClassifyFilesFormFolder,Asset
 from ..core import utility as utility
 from ..core.backend import Backend
 
 ROOT_PATH = "."
-
 
 class SelectFileLineEdit(LineEdit):
     selectedFile = pyqtSignal()
