@@ -392,6 +392,18 @@ def update_asset(asset:Asset,assetLibFolder:str):
     SearchWords = f"{asset.name} {asset.AssetID} {asset.category} {asset.subcategory}"+" ".join(asset.tags)
     Backend.Get().changeAsset(asset.AssetID,"SearchWords",SearchWords)
 
+def isMapUriValid(url:str,udim:bool)->bool:
+    if url.strip() == "":
+        # 如果url为空 返回假
+        return False
+    elif not os.path.exists(url) and not udim:
+        # 如果非UDIM的情况下 url文件不存在返回空
+        return False
+    elif udim and not os.path.exists(url.replace("udim","1001")):
+        # 如果UDIM情况下,1001文件不存在返回空
+        return False
+    else:
+        return True
 def CopyAndRenameAsset(asset:Asset,assetLibFolder:str):
     Log(f"Start to move asset {asset.name}","ImportAsset")
     # 计算资产ID
@@ -408,26 +420,26 @@ def CopyAndRenameAsset(asset:Asset,assetLibFolder:str):
 
     #复制Bridge中原有的Json文件
     if asset.OldJson != "":
-        asset.OldJson = CopyFileToFolder(asset.OldJson,rootFolder,f"{asset.AssetID}_old.json")
+        asset.OldJson = CopyFileToFolderSingle(asset.OldJson,rootFolder,f"{asset.AssetID}_old.json")
 
     if asset.type == AssetType.Assets3D or asset.type == AssetType.Plant:
         for i in range(len(asset.Lods)):
             asset.Lods[i].mesh.name = f"{asset.AssetID}_LOD{asset.Lods[i].level}{asset.Lods[i].mesh.extension}"
-            asset.Lods[i].mesh.uri = CopyFileToFolder(asset.Lods[i].mesh.uri,rootFolder,asset.Lods[i].mesh.name)
+            asset.Lods[i].mesh.uri = CopyFileToFolderSingle(asset.Lods[i].mesh.uri,rootFolder,asset.Lods[i].mesh.name)
             asset.Lods[i].normalMap.name = f"{asset.AssetID}_Normal_LOD{asset.Lods[i].level}{asset.Lods[i].normalMap.extension}"
-            asset.Lods[i].normalMap.uri = CopyFileToFolder(asset.Lods[i].normalMap.uri,rootFolder,asset.Lods[i].normalMap.name)
+            asset.Lods[i].normalMap.uri = CopyFileToFolderSingle(asset.Lods[i].normalMap.uri,rootFolder,asset.Lods[i].normalMap.name)
         for i in range(len(asset.MeshVars)):
             var_sub_folder = os.path.join(rootFolder,f"Var{asset.MeshVars[i].VarIndex}")
             if not os.path.exists(var_sub_folder):
                 os.makedirs(var_sub_folder)
             asset.MeshVars[i].OriginMesh.name = f"{asset.AssetID}_Var{asset.MeshVars[i].VarIndex}{asset.MeshVars[i].OriginMesh.extension}"
-            asset.MeshVars[i].OriginMesh.uri = CopyFileToFolder(asset.MeshVars[i].OriginMesh.uri,var_sub_folder,asset.MeshVars[i].OriginMesh.name)
+            asset.MeshVars[i].OriginMesh.uri = CopyFileToFolderSingle(asset.MeshVars[i].OriginMesh.uri,var_sub_folder,asset.MeshVars[i].OriginMesh.name)
             for j in range(len(asset.MeshVars[i].Lods)):
                 asset.MeshVars[i].Lods[j].mesh.name = f"{asset.AssetID}_Var{asset.MeshVars[i].VarIndex}_LOD{asset.MeshVars[i].Lods[j].level}{asset.MeshVars[i].OriginMesh.extension}"
-                asset.MeshVars[i].Lods[j].mesh.uri = CopyFileToFolder(asset.MeshVars[i].Lods[j].mesh.uri,var_sub_folder,asset.MeshVars[i].Lods[j].mesh.name)
+                asset.MeshVars[i].Lods[j].mesh.uri = CopyFileToFolderSingle(asset.MeshVars[i].Lods[j].mesh.uri,var_sub_folder,asset.MeshVars[i].Lods[j].mesh.name)
         asset.OriginMesh.name = asset.AssetID + asset.OriginMesh.extension
-        asset.OriginMesh.uri = CopyFileToFolder(asset.OriginMesh.uri,rootFolder,asset.OriginMesh.name)
-        asset.ZbrushFile = CopyFileToFolder(asset.ZbrushFile,rootFolder,f"{asset.AssetID}.ZTL")
+        asset.OriginMesh.uri = CopyFileToFolderSingle(asset.OriginMesh.uri,rootFolder,asset.OriginMesh.name)
+        asset.ZbrushFile = CopyFileToFolderSingle(asset.ZbrushFile,rootFolder,f"{asset.AssetID}.ZTL")
     else:
         pass
     for i in range(len(asset.assetMaterials)):
@@ -437,10 +449,11 @@ def CopyAndRenameAsset(asset:Asset,assetLibFolder:str):
             else:
                 asset.assetMaterials[i].maps[j].name = f"{asset.AssetID}_{asset.assetMaterials[i].maps[j].type.value}{asset.assetMaterials[i].maps[j].extension}"
             asset.assetMaterials[i].maps[j].size = GetTextureSize(asset.assetMaterials[i].maps[j].uri,asset.assetMaterials[i].maps[j].UDIM)
-            asset.assetMaterials[i].maps[j].uri = CopyFileToFolder(asset.assetMaterials[i].maps[j].uri,rootFolder,asset.assetMaterials[i].maps[j].name,False,asset.assetMaterials[i].maps[j].UDIM,asset.assetMaterials[i].maps[j].subMapCount)
+            asset.assetMaterials[i].maps[j].uri = CopyFileToFolderUDIM(asset.assetMaterials[i].maps[j].uri,rootFolder,asset.assetMaterials[i].maps[j].name,False,asset.assetMaterials[i].maps[j].UDIM,asset.assetMaterials[i].maps[j].subMapCount)
     for i in range(len(asset.previewFile)):
+        _,ext = os.path.splitext(asset.previewFile[i])
         asset.previewFile[i] = scaleImage(asset.previewFile[i])
-        asset.previewFile[i] = CopyFileToFolder(asset.previewFile[i],rootFolder,f"{asset.AssetID}_Preview_{i}.jpg",True)
+        asset.previewFile[i] = CopyFileToFolderSingle(asset.previewFile[i],rootFolder,f"{asset.AssetID}_Preview_{i}{ext}",True)
     JsonUri_abs = os.path.join(rootFolder,f"{asset.AssetID}.json")
     asset.JsonUri = os.path.basename(JsonUri_abs)
     with open(JsonUri_abs,'w+',encoding='utf-8') as f:
@@ -461,33 +474,33 @@ def generate_unique_string(length=10):
 
 
 
+def CopyFileToFolderSingle(filePath:str,folder:str,newName:str = None,move:bool=False):
+    Log(f"将文件{filePath},复制到目录{folder}中","复制文件")
+    if not os.path.exists(filePath):
+        assert f"文件{filePath}不存在"
+        return ""
+    newFileName = os.path.basename(filePath)
+    if newName:
+        newFileName = newName
+    newFilePath = os.path.join(folder,newFileName)
+    if move:
+        shutil.move(filePath,newFilePath)
+    else:
+        shutil.copyfile(filePath,newFilePath)
+    return os.path.basename(newFilePath)
 
-def CopyFileToFolder(filePath:str,folder:str,newName:str = None,move:bool=False,udim=False,udimCount:int=1):
+
+def CopyFileToFolderUDIM(filePath:str,folder:str,newName:str = None,move:bool=False,udim=False,udimCount:int=1):
     if udim:
+        udimMaps = []
         for i in range(udimCount):
             udimFlag = "1{:03d}".format(i+1)
             udim_new_name = newName.replace("udim",udimFlag)
-            udim_new_path = os.path.join(folder,udim_new_name)
             udim_old_path = filePath.replace("udim",udimFlag)
-            if move:
-                shutil.move(udim_old_path,udim_new_path)
-            else:
-                shutil.copyfile(udim_old_path,udim_new_path)
-        return os.path.join(folder,newName)
+            udimMaps.append(CopyFileToFolderSingle(udim_old_path,folder,udim_new_name,move))
+        return udimMaps[0].replace("1001","udim")
     else:
-        if not os.path.exists(filePath):
-            return ""
-        newFileName = os.path.basename(filePath)
-        if newName:
-            newFileName = newName
-        newFilePath = os.path.join(folder,newFileName)
-        if move:
-            shutil.move(filePath,newFilePath)
-        else:
-            shutil.copyfile(filePath,newFilePath)
-        return os.path.basename(newFilePath)
-
-
+        return CopyFileToFolderSingle(filePath,folder,newName,move)
 
 def scaleImage(imagePath:str):
     baseName = os.path.basename(imagePath)
@@ -507,9 +520,7 @@ def sendStringToUE(string:str,address:tuple[str,int]):
     try:
         client_socket.connect(address)
         client_socket.sendall(string.encode())
-        queueLength = int(client_socket.recv(1024).decode())
-        client_socket.close()
-        return queueLength
+        return True
     except:
         return False
     
@@ -717,6 +728,7 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod
                 continue
             mapUri = os.path.join(rootFolder,map.uri)
             if map.UDIM:
+                mapUri = mapUri.replace("udim","1001")
                 udim = True
             if map.size.value != size:
                 # 这里如果贴图是UDIM会把关键词udim替换为1001
@@ -800,7 +812,6 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod
             mesh = meshUri,
             udim = str(False)
         )
-    print(message)
     Log("将以下消息发送到UE中")
     print(message)
     flag = sendStringToUE(json.dumps(message),address)

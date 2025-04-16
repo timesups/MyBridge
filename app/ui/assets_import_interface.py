@@ -20,7 +20,7 @@ import app.core.common_widgets as common
 from app.core.utility import category,GetCategorys,AssetType,ClassifyFilesFormFolder,Asset
 from ..core import utility as utility
 from ..core.backend import Backend
-
+from app import ISPACKED
 ROOT_PATH = "."
 
 class SelectFileLineEdit(LineEdit):
@@ -581,7 +581,7 @@ class AssetsImportData(QWidget,Translator):
             self.addLod(lodPath=lodIndexs[str(i)],normalPath=normal_uri)
     def assetNameChange(self):
         self.assetNameChanged.emit(self.leg_name.text())
-    def generateAsset(self):
+    def getAssetForImport(self):
         asset = Asset()
         asset.name = self.leg_name.text()
         if asset.name == "":
@@ -593,7 +593,6 @@ class AssetsImportData(QWidget,Translator):
             if tag != "":
                 tags.append(tag)
         asset.tags = tags
-        utility.AssetType._member_map_
         asset.type = copy.deepcopy(utility.AssetType._member_map_[utility.AssetType._member_names_[self.combox_type.currentIndex()]])
         asset.category = self.combox_category.currentText()
         asset.subcategory = self.combox_subcategory.currentText()
@@ -608,7 +607,8 @@ class AssetsImportData(QWidget,Translator):
             for group in materialGroup.textureGroups.textureGroups:
                 udim = group.cb_UDIM.isChecked()
                 mapUri = group.lineEdit.text()
-                if mapUri == "":
+                #跳过路径不合法的贴图
+                if not utility.isMapUriValid(mapUri,udim):
                     continue
                 map = utility.AssetMap()
                 map.uri = mapUri
@@ -624,11 +624,11 @@ class AssetsImportData(QWidget,Translator):
                     map.size = utility.GetTextureSize(mapUri)
                 map.type = copy.deepcopy(utility.AssetMapType._value2member_map_[group.GroupLabel])
                 material.maps.append(map)
-        asset.assetMaterials.append(material)
+            asset.assetMaterials.append(material)
         if asset.type == utility.AssetType.Assets3D or asset.type == utility.AssetType.Plant:
             asset.OriginMesh.uri = self.OriginMesh.text()
             if asset.OriginMesh.uri == "":
-                common.showDialog("错误","网格不能为空","错误")
+                common.showDialog("错误","网格不能为空")
                 return
             asset.OriginMesh.name = os.path.basename(asset.OriginMesh.uri)
             asset.OriginMesh.extension = os.path.splitext(asset.OriginMesh.uri)[1]
@@ -660,6 +660,23 @@ class AssetsImportData(QWidget,Translator):
         else:
             pass
         asset.assetFormat = utility.AssetFormat.FBX
+        return asset
+    def getAssetForEdit(self):
+        asset = Asset()
+        asset.name = self.leg_name.text()
+        if asset.name == "":
+            common.showDialog("错误","资产名称不能为空","错误")
+            return
+        tags = []
+        for tagbutton in self.findChildren(TagButton):
+            tag = tagbutton.text().strip()  
+            if tag != "":
+                tags.append(tag)
+        asset.tags = tags
+        utility.AssetType._member_map_
+        asset.type = copy.deepcopy(utility.AssetType._member_map_[utility.AssetType._member_names_[self.combox_type.currentIndex()]])
+        asset.category = self.combox_category.currentText()
+        asset.subcategory = self.combox_subcategory.currentText()
         return asset
 
 class AssetsEditInterface(FrameLessFloatingWindow):
@@ -700,10 +717,9 @@ class AssetsEditInterface(FrameLessFloatingWindow):
         layoutButtons.addWidget(pb_close)
     
     def save_asset(self):
-        asset = self.assetsImportData.generateAsset()
+        asset = self.assetsImportData.getAssetForEdit()
         if not asset:
             return
-        
         self.currentOriginalAsset.name = asset.name
         self.currentOriginalAsset.tags = asset.tags
         self.currentOriginalAsset.type = asset.type
@@ -884,22 +900,20 @@ class AssetsImportInterface(QWidget):
         widget =self.switchWidget.findChild(AssetsImportData,f"asset_data_interface_{self.current_tab_index}")
         if not widget:
             return
-        asset = widget.generateAsset()
+        asset = widget.getAssetForImport()
         if not asset:
             return
-        
-        # worker = common.CommonWorker(self)
-        # worker.fun = lambda : self.importAssetToLibraryThread(asset)
-        # worker.overed.connect(self.import_over)
-        # worker.start()
-        # self.setDisabled(True)
-        # self.progressRing.move(int(self.width()/2),int(self.height()/2))
-        # self.progressRing.show()
-        self.importAssetToLibraryThread(asset)
-
+        if ISPACKED:
+            worker = common.CommonWorker(self)
+            worker.fun = lambda : self.importAssetToLibraryThread(asset)
+            worker.overed.connect(self.import_over)
+            worker.start()
+            self.setDisabled(True)
+            self.progressRing.move(int(self.width()/2),int(self.height()/2))
+            self.progressRing.show()
+        else:
+            self.importAssetToLibraryThread(asset)
     def importAssetToLibraryThread(self,asset:Asset):
-        import time
-        time.sleep(5)
         asset = utility.CopyAndRenameAsset(asset,Backend.Get().getAssetRootPath())
         utility.AddAssetDataToDataBase(asset)
     def import_over(self):

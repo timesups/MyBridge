@@ -7,7 +7,6 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
 from PyQt5.QtWidgets import QMessageBox
 
-
 import sys
 import app.resource.resource_rc
 from app.core.Log import Log
@@ -16,9 +15,7 @@ from app.ui.setting_interface import SettingInterface
 from app.core.translator import Translator
 import app.core.utility as ut
 from app.core.backend import Backend
-
 from app.ui.assets_import_interface import AssetsImportInterface
-
 
 import subprocess
 
@@ -80,7 +77,6 @@ if __name__ == "__main__":
     if ut.get_pid("MyBridge.exe"):
         Log("已经存在运行的实例,本实例退出","Main")
         sys.exit(0)
-
     #检查更新
     newest_version = Backend.Get().check_update()
     if newest_version:
@@ -94,7 +90,6 @@ if __name__ == "__main__":
             pass
         
     # 启动窗口
-
     toggleTheme()
     window = MainWindow()
     window.show()

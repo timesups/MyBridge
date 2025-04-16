@@ -371,6 +371,7 @@ class MySmoothScrollArea(SmoothScrollArea):
 
 class ItemCardView(QWidget,Translator):
     assetDelete = pyqtSignal()
+    assetsReloaded = pyqtSignal()
     def __init__(self,parent=None):
         super().__init__(parent=parent)
         # values
@@ -476,6 +477,7 @@ class ItemCardView(QWidget,Translator):
     def loadItemFromDataBaseAndMakeItAbs(self):
         if Backend.Get().isBackendAvailable():
             datas = Backend.Get().getAssetsList()
+            datas.reverse()
             remoteAssetLibrary = Backend.Get().getAssetRootPath()
         else:
             datas = []
@@ -516,6 +518,7 @@ class ItemCardView(QWidget,Translator):
         self.currentLoadedCardCount = 0
         self.filteredAssetDatas = self.loadedAssets
         self.loadItems()
+        self.assetsReloaded.emit()
     def addItemCard(self,imagepath:str,name:str,assetID:str):
         index = len(self.cards)
         itemCard = ItemCard(self,index,imagepath,name,assetID)
@@ -619,6 +622,7 @@ class HomeInterface(QWidget):
         self.item_header.combox_category.currentIndexChanged.connect(self.changeSubcategoryComboxBaseOnCategory)
         self.item_header.combox_subcategory.currentIndexChanged.connect(self.FilterCardsPerLevel)
         self.item_card_view.infoPanel.onTagClicked.connect(self.setSearchText)
+        self.item_card_view.assetsReloaded.connect(self.FilterCardsPerLevel)
     def setSearchText(self,text):
         self.item_header.searchBar.setText(text)
         self.FilterCardsPerLevel()

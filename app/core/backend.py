@@ -20,7 +20,7 @@ class Backend():
     def getAssetRootPath(self):
         response = requests.get(Config.Get().backendAddress+"/config/assetsLibraryPath")
         return response.json()["uri"]
-    def getAssetsList(self):
+    def getAssetsList(self)->list:
         response = requests.get(Config.Get().backendAddress+"/assets/all")
         return response.json()
     def getAssetsCount(self):
