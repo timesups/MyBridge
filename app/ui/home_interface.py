@@ -1,6 +1,9 @@
 from qfluentwidgets import (FlowLayout,PushButton,
                             SmoothScrollArea,SearchLineEdit,
-                            ComboBox,InfoBar,InfoBarPosition,Dialog)
+                            ComboBox,InfoBar,InfoBarPosition,Dialog,
+                            ToolButton)
+from qfluentwidgets import FluentIcon as FIF
+
 from PyQt5.QtWidgets import (QApplication,QWidget,
                              QFrame,QHBoxLayout,QVBoxLayout,QMenu,
                              QLabel,QSizePolicy)
@@ -32,31 +35,12 @@ class ImageScaleWorker(QThread):
     width = 100
     height = 100
     imageOrigin = None
+    imageuri = None
     image = None
     def run(self):
+        if not self.imageOrigin:
+            self.imageOrigin = LoadPixmapSafely(self.imageuri) 
         self.image = scalePixelMap(self.width,self.height,self.imageOrigin)
-
-
-class SharedValues():
-    cards = []
-
-mutex = QMutex()
-
-
-
-class GenrateCardWorker(QThread):
-    index = None
-    imagepath = None
-    name = None
-    assetID = None
-    def run(self):
-        index = len(self.cards)
-        itemCard = ItemCard(self,index,self.imagepath,self.name,self.assetID)
-        mutex.lock()
-        try:
-            SharedValues.cards.append(itemCard)
-        finally:
-            mutex.unlock()
 
 
 
@@ -68,7 +52,7 @@ class ItemCard(QFrame):
     def __init__(self,parent,index:int,imagePath:str,name:str,assetid:str,size:int=250):
         super().__init__(parent=parent)
         self.setFixedSize(size,size)
-        self.item_pixel_map = LoadPixmapSafely(imagePath)
+        self.item_pixel_uri = imagePath
         self.item_name = name
         self.__textPaddingX = 5
         self.__textPaddingY = 5
@@ -122,7 +106,7 @@ class ItemCard(QFrame):
             self.clicked.emit(self.index)
     def resizeEvent(self, a0: QResizeEvent | None) -> None:
         if not self.worker.isRunning():
-            self.worker.imageOrigin =  self.item_pixel_map
+            self.worker.imageuri =  self.item_pixel_uri
             self.worker.width = self.width()-2*self.imageMargin
             self.worker.height = self.height()-2*self.imageMargin
             self.worker.start()
@@ -324,6 +308,9 @@ class ItemHeader(QFrame,Translator):
         self.combox_subcategory.addItem("请选择资产次级分类")
         self.combox_subcategory.setFixedWidth(200)
 
+        self.pb_refresh =ToolButton(FIF.SYNC,self)
+
+
 
         self.__initWidget()
 
@@ -339,6 +326,7 @@ class ItemHeader(QFrame,Translator):
         self.comboxWidgetLayout.addWidget(self.combox_category)
         self.comboxWidgetLayout.addWidget(self.combox_subcategory)
         self.comboxWidgetLayout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.comboxWidgetLayout.addWidget(self.pb_refresh,alignment=Qt.AlignmentFlag.AlignRight)
         self.searchBar.searchSignal.connect(self.__search)
         self.searchBar.clearSignal.connect(self.__clear)
         self.searchBar.returnPressed.connect(lambda:self.__search(self.searchBar.text()))
@@ -477,7 +465,6 @@ class ItemCardView(QWidget,Translator):
     def loadItemFromDataBaseAndMakeItAbs(self):
         if Backend.Get().isBackendAvailable():
             datas = Backend.Get().getAssetsList()
-            datas.reverse()
             remoteAssetLibrary = Backend.Get().getAssetRootPath()
         else:
             datas = []
@@ -525,7 +512,7 @@ class ItemCardView(QWidget,Translator):
         itemCard.clicked.connect(self.setSelectedItem)
         itemCard.goToFile.connect(self.goToFile)
         itemCard.deleteItem.connect(self.deleteAsset)
-        itemCard.editItem.connect(self.editItem)
+        itemCard.editItem.connect(self.editItem)      
         self.cards.append(itemCard)
         self.flowLayout.addWidget(self.cards[index])
     def editItem(self,index:int):
@@ -623,6 +610,7 @@ class HomeInterface(QWidget):
         self.item_header.combox_subcategory.currentIndexChanged.connect(self.FilterCardsPerLevel)
         self.item_card_view.infoPanel.onTagClicked.connect(self.setSearchText)
         self.item_card_view.assetsReloaded.connect(self.FilterCardsPerLevel)
+        self.item_header.pb_refresh.clicked.connect(self.item_card_view.reloadItems)
     def setSearchText(self,text):
         self.item_header.searchBar.setText(text)
         self.FilterCardsPerLevel()
