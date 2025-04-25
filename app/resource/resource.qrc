@@ -2,6 +2,7 @@
     <qresource prefix="/MyBridge">
         <file>image/icon.ico</file>
         <file>icons/heart_filled.png</file>
+        <file>icons/Unreal_flag.png</file>
         <file>icons/heart.png</file>
         <file>icons/fbx_flag.png</file>
         <file>qss/dark/home_interface.qss</file>

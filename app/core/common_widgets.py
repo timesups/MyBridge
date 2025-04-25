@@ -15,12 +15,12 @@ from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
                              QAction,QStyleOption)
 from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
                          QBrush,QPainter,QImage,QPixmap,QColor, 
-                         QResizeEvent)
+                         QResizeEvent,QImageReader)
 from PyQt5.QtCore import QObject, QRect,Qt,QPoint,QEasingCurve,pyqtSignal,QThread,QPropertyAnimation
 
 
 import sys
-
+import os
 
 
 def showDialog(title,content,parent):
@@ -150,6 +150,15 @@ class QLine(QFrame):
         line = QLine(parent)
         line.SetVertical()
         return line
+
+    
+
+def load_and_fix_image(image_uri):
+    pass
+    # assert not will_trigger_warning(image_uri),image_uri
+    # return QPixmap(image_uri)
+        
+
 
 def scaleMap(width:int,height:int,mapPath:str)-> QPixmap:
     original_pixelmap = QPixmap(mapPath)

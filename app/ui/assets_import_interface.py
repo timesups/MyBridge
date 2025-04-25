@@ -6,7 +6,7 @@ from qfluentwidgets import (PushButton,SmoothScrollArea,
 from qfluentwidgets import FluentIcon as FIF
 from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QLabel,
                              QFileDialog,QToolButton)
-from PyQt5.QtCore import QSize,pyqtSignal
+from PyQt5.QtCore import QSize,pyqtSignal,QModelIndex
 from PyQt5.QtCore import Qt,QPoint
 import copy
 import os
@@ -685,8 +685,10 @@ class AssetsEditInterface(FrameLessFloatingWindow):
         self.__initUI()
         self.__setQss()
         self.setObjectName("assets_import_interface")
-    def loadDataFromAsset(self,libraryAssetData:dict):
-        jsonFilePath =  os.path.join(Backend.Get().getAssetRootPath(),libraryAssetData["rootFolder"],libraryAssetData["jsonUri"]) 
+    def loadDataFromModelindex(self,index:QModelIndex):
+        self.index = index
+        data = self.index.data(Qt.ItemDataRole.UserRole+1)
+        jsonFilePath =  os.path.join(Backend.Get().getAssetRootPath(),data.rootFolder,data.jsonUri) 
         with open(jsonFilePath,mode='r',encoding='utf-8') as f:
             data = json.loads(f.read())
         self.currentOriginalAsset = Asset.from_dict(data)
@@ -727,6 +729,14 @@ class AssetsEditInterface(FrameLessFloatingWindow):
         self.currentOriginalAsset.subcategory = asset.subcategory
 
         utility.update_asset(self.currentOriginalAsset,Backend.Get().getAssetRootPath())
+        
+        data = self.index.data(Qt.ItemDataRole.UserRole+1)
+        data.name = asset.name
+        data.tags = asset.tags
+        data.type = asset.type.value
+        data.category = asset.category
+        data.subcategory = asset.subcategory
+        self.index.model().setData(self.index,data,Qt.ItemDataRole.UserRole+1)
         self.close()
         self.deleteLater()
 
@@ -736,6 +746,7 @@ class AssetsEditInterface(FrameLessFloatingWindow):
 
 
 class AssetsImportInterface(QWidget):
+    imported = pyqtSignal(dict)
     def __init__(self,parent=None):
         super().__init__(parent)
 
@@ -915,11 +926,13 @@ class AssetsImportInterface(QWidget):
             self.importAssetToLibraryThread(asset)
     def importAssetToLibraryThread(self,asset:Asset):
         asset = utility.CopyAndRenameAsset(asset,Backend.Get().getAssetRootPath())
-        utility.AddAssetDataToDataBase(asset)
+        self.library_data = utility.AddAssetDataToDataBase(asset)
     def import_over(self):
         self.removeTab(self.current_tab_index)
         self.setDisabled(False)
         self.progressRing.close()
+        self.imported.emit(self.library_data)
+
 
 
 

@@ -11,6 +11,7 @@ class StyleSheet(StyleSheetBase,Enum):
     HOME_INTERFACE = "home_interface"
     IMPORT_INTERFACE = "import_interface"
     SETTING_INTERFACE = "setting_interface"
+    CARD_VIEW = "card_view"
     
     def path(self,theme=Theme.AUTO):
         theme = qconfig.theme if theme == Theme.AUTO else theme

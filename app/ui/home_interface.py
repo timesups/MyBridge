@@ -1,128 +1,411 @@
 from qfluentwidgets import (FlowLayout,PushButton,
                             SmoothScrollArea,SearchLineEdit,
-                            ComboBox,InfoBar,InfoBarPosition,Dialog,
-                            ToolButton)
-from qfluentwidgets import FluentIcon as FIF
+                            ComboBox,Dialog,InfoBar,InfoBarPosition
+                            )
 
 from PyQt5.QtWidgets import (QApplication,QWidget,
                              QFrame,QHBoxLayout,QVBoxLayout,QMenu,
-                             QLabel,QSizePolicy)
-from PyQt5.QtGui import (QCloseEvent, QContextMenuEvent, QMouseEvent, QPaintEvent,
-                         QBrush,QPainter,QPixmap,QColor, 
-                         QResizeEvent,QTransform)
-from PyQt5.QtCore import QEvent, QRect,Qt,pyqtSignal,QThread,QMutex
+                             QLabel,QSizePolicy,QStyledItemDelegate,
+                             QStyleOptionViewItem,QStyle,QListView,
+                             QAbstractItemView,QOpenGLWidget)
+from PyQt5.QtGui import (QPaintEvent,
+                         QBrush,QPainter,QColor, 
+                         QResizeEvent,QPen,
+                         QPainterPath)
+from PyQt5.QtCore import (QRect,Qt,
+                          pyqtSignal,QThread,QAbstractListModel,
+                          QModelIndex,QSize,QRectF,QPoint,QPropertyAnimation,QEasingCurve)
 import pyperclip
 
 import os
+import typing
+
 
 from app.core.Log import Log
 from app.core.style_sheet import StyleSheet
 from app.core.common_widgets import scalePixelMap,scaleMap,StringButton,LoadPixmapSafely
 import app.core.utility as ut
 from app.core.config import Config
-
 from app.core.translator import Translator
 from app.core.icons import Icons
-
 from ..core.backend import Backend
 from .assets_import_interface import AssetsEditInterface
 
-class ItemCardContextMenu(QMenu):
-    def __init__(self,parent=None):
+class CommonWorker(QThread):
+    fun = None
+    finished = pyqtSignal()
+    def __init__(self, parent =None):
         super().__init__(parent)
-
-class ImageScaleWorker(QThread):
-    width = 100
-    height = 100
-    imageOrigin = None
-    imageuri = None
-    image = None
     def run(self):
-        if not self.imageOrigin:
-            self.imageOrigin = LoadPixmapSafely(self.imageuri) 
-        self.image = scalePixelMap(self.width,self.height,self.imageOrigin)
+        if self.fun:
+            self.fun()
+            self.finished.emit()
 
+class ThreadPool():
+    instance = None
+    def __init__(self):
+        self.poolsize = 16
+        self.threads:list[CommonWorker] = [None]*self.poolsize
+    def get_one_thread(self):
+        while True:
+            for i in range(self.poolsize):
+                find_thread = False
+                if not self.threads[i]:
+                    self.threads[i] = CommonWorker()
+                    find_thread = True
+                elif not self.threads[i].isRunning():
+                    find_thread = True
+                else:
+                    pass
+                if find_thread:
+                    self.threads[i].fun = None
+                    try:
+                        self.threads[i].finished.disconnect()
+                    except:
+                        pass
+                    return self.threads[i]
+    @classmethod
+    def get(cls):
+        if not cls.instance:
+            cls.instance = cls()
+        return cls.instance
 
+class AssetItem():
+    def __init__(self):
+        self.name = None
+        self.favorite = None
+        self.type = None
+        self.AssetID  = None   
+        self.jsonUri = None
+        self.asset   = None
+        self.category = None  
+        self.subcategory = None
+        self.tags        = None
+        self.type        =None
+        self.previewFile =None
+        self.rootFolder  =None
+        self.lods        =None
+        self.SearchWords = None
+        self.image = None
+    def load_image(self,width:int=512,height:int=512):
+        worker = ThreadPool.get().get_one_thread()
+        worker.fun = lambda:self.load_image_thread(width,height)
+        worker.start()
+    def load_image_thread(self,width,height):
+        ut.fix_error_image(self.previewFile,(0,0,0))
+        self.image = scaleMap(width,height,self.previewFile)
+    @classmethod
+    def load_from_dict(cls,data:dict,rootpath:str)->"AssetItem":
+        item = cls()
+        item.name        = data["name"] 
+        item.AssetID     = data["AssetID"] 
+        item.asset       = data["asset"] 
+        item.category    = data["category"] 
+        item.subcategory = data["subcategory"] 
+        item.tags        = data["tags"] 
+        item.type        = data["type"] 
+        item.previewFile = os.path.join(rootpath,data["rootFolder"],data["previewFile"])
+        item.rootFolder  = os.path.join(rootpath,data["rootFolder"])
+        item.lods        = data["lods"] 
+        item.SearchWords = data["SearchWords"] 
+        item.jsonUri     = os.path.join(rootpath,data["rootFolder"],data["jsonUri"])
+        return item
 
-class ItemCard(QFrame):
-    clicked = pyqtSignal(int)
-    goToFile = pyqtSignal(int)
-    deleteItem = pyqtSignal(int)
-    editItem = pyqtSignal(int)
-    def __init__(self,parent,index:int,imagePath:str,name:str,assetid:str,size:int=250):
-        super().__init__(parent=parent)
-        self.setFixedSize(size,size)
-        self.item_pixel_uri = imagePath
-        self.item_name = name
-        self.__textPaddingX = 5
-        self.__textPaddingY = 5
-        self.isSelected = False
-        self.index = index
-        self.isHove = False
-        self.imageMargin = 8
-        self.worker = ImageScaleWorker(self)
-        self.isFavorite = False
-        self.heartPixmap = Icons.get().heart
-        self.assetid = assetid
-        self.action_edit = None
-    def setSize(self,size:int):
-        self.resize(size,size)
-        self.setFixedSize(size,size)
-    def setSelected(self,isSelected:bool,force=False):
-        if isSelected == self.isSelected and not force:
+class DynamicListModel(QAbstractListModel):
+    class SortOrder(int):
+        AscendingOrder = ... # type: Qt.SortOrder
+        DescendingOrder = ... # type: Qt.SortOrder
+    class DataType(int):
+        name = ...
+    item_update = pyqtSignal(QModelIndex)
+    def __init__(self,parent):
+        super().__init__(parent)
+        self.__loaded_datas:list[AssetItem] = []
+        self.__all_datas:list[AssetItem] = []
+        self.is_loaded = False
+        self.filtered_datas = self.__all_datas
+        self.current_loaded_count = 0
+        self.per_times_loaded_count = 36
+        self.load_from_server()
+    def load_from_server(self):
+        remoteAssetLibrary = Backend.Get().getAssetRootPath()
+        datas = Backend.Get().getAssetsList()
+        for data in datas:
+            self.__all_datas.append(AssetItem.load_from_dict(data,remoteAssetLibrary))
+    def items_filter(self,type_index:int,category_index:int,subcategory_index:int,search_key_word:str):
+        self.clear_datas()
+
+        self.filtered_datas = []
+        for data in self.__all_datas:
+            if type_index >= 1:
+                type = list(ut.AssetType.__members__.values())[type_index-1]
+                if type.value != data.type:
+                    continue
+            if category_index >= 1:
+                category = ut.GetCategorys(0)[category_index-1]
+                if category != data.category:
+                    continue
+            if subcategory_index >=1:
+                subcategory = ut.GetSubCategorys(category_index-1)[subcategory_index-1]
+                if subcategory != data.subcategory:
+                    continue
+            if search_key_word != "" and search_key_word.lower() not in data.SearchWords.lower():
+                continue
+            self.filtered_datas.append(data)
+        self.load_more_data()
+    def clear_datas(self):
+        self.beginResetModel()
+        self.__loaded_datas = []
+        self.endResetModel()
+        self.current_loaded_count = 0
+    def data(self, index, role = Qt.ItemDataRole.DisplayRole):
+        if role == Qt.ItemDataRole.DisplayRole:
+            return self.__loaded_datas[index.row()].name
+        elif role == Qt.ItemDataRole.DecorationRole:
+            return self.__loaded_datas[index.row()].image
+        elif role == Qt.ItemDataRole.UserRole + 1:
+            return  self.__loaded_datas[index.row()]
+    def setData(self, index, value, role = ...):
+        if role == Qt.ItemDataRole.UserRole + 1:
+            self.__all_datas[index.row()] = value
+            self.__loaded_datas[index.row()] = value
+            self.dataChanged.emit(index,index,[role])
+            self.item_update.emit(index)
+    def rowCount(self, parent = QModelIndex()):
+        return len(self.__loaded_datas)
+    def removeRow(self, row, parent = ...):
+        self.beginRemoveRows(parent,row,row+1)
+        self.__all_datas.remove(self.__loaded_datas[row])
+        self.__loaded_datas.remove(self.__loaded_datas[row])
+        self.endRemoveRows()
+    def append_row(self,item:dict):
+        self.beginRemoveRows(QModelIndex(),len(self.__all_datas),len(self.__all_datas)+1)
+        remoteAssetLibrary = Backend.Get().getAssetRootPath()
+        item = AssetItem.load_from_dict(item,remoteAssetLibrary)
+        self.__all_datas.append(item)
+        self.endRemoveRows()
+    def load_more_data(self):
+        if self.is_loaded:
             return
-        self.isSelected = isSelected
-        self.setProperty("isSelected",self.isSelected)
-        self.setStyle(QApplication.style())
-    def contextMenuEvent(self, a0: QContextMenuEvent | None) -> None:
-        menu = ItemCardContextMenu(self)
-        action = menu.addAction("复制资产ID")
-        action.triggered.connect(lambda :pyperclip.copy(self.assetid))
-
-        action = menu.addAction("打开文件夹")
-        action.triggered.connect(lambda :self.goToFile.emit(self.index))
-
-        action = menu.addAction("删除资产")
-        action.triggered.connect(lambda :self.deleteItem.emit(self.index))
-
-
-        action = menu.addAction("编辑资产")
-        action.triggered.connect(lambda :self.editItem.emit(self.index))
-        
-
-        menu.move(a0.globalPos())
-        menu.show()
-        pass
-    def enterEvent(self, a0: QEvent | None) -> None:
-        self.isHove = True
-        return super().enterEvent(a0)
-    def leaveEvent(self, a0: QEvent | None) -> None:
-        self.isHove = False
-        return super().leaveEvent(a0)
-    def mouseReleaseEvent(self, e: QMouseEvent | None) -> None:
-        if e.button() == 1:
-            if self.isSelected:
+        self.is_loaded = True
+        worker = ThreadPool.get().get_one_thread()
+        worker.fun = self.__load_more_data_thread
+        worker.finished.connect(self.__on_data_loaded)
+        worker.start()
+    def parent(self)->"AssetCardView":
+        return super().parent()
+    def __load_more_data_thread(self):
+        self.new_datas = []
+        for i in range(self.current_loaded_count,self.current_loaded_count + self.per_times_loaded_count):
+            if i >= len(self.filtered_datas):
                 return
-            self.clicked.emit(self.index)
-    def resizeEvent(self, a0: QResizeEvent | None) -> None:
-        if not self.worker.isRunning():
-            self.worker.imageuri =  self.item_pixel_uri
-            self.worker.width = self.width()-2*self.imageMargin
-            self.worker.height = self.height()-2*self.imageMargin
-            self.worker.start()
-        return super().resizeEvent(a0)
-    def paintEvent(self, e: QPaintEvent | None) -> None:
-        painter = QPainter(self)
-        rect_tar  = QRect(self.imageMargin,self.imageMargin,self.width()-2*self.imageMargin,self.height()-2*self.imageMargin)
-        if not self.worker.isRunning() and self.worker.image != None:
-            rect_src  =  QRect(0,0, self.worker.image.width(),self.worker.image.height())
-            painter.drawPixmap(rect_tar,self.worker.image,rect_src)
-        else:
-            painter.fillRect(rect_tar,QColor(34,34,34)) 
-        if self.isHove and self.isEnabled():
-            painter.drawText(0+self.__textPaddingX,self.height()-self.__textPaddingY,f"{self.item_name}")
-        painter.end()
+            itme = self.filtered_datas[i]
+            itme.load_image(256,256)
+            self.new_datas.append(itme)
+            self.current_loaded_count += 1
+    def __on_data_loaded(self):
+        self.beginInsertRows(QModelIndex(),len(self.__loaded_datas),len(self.__loaded_datas) + len(self.new_datas)-1)
+        self.__loaded_datas.extend(self.new_datas)
+        self.endInsertRows()
+        self.is_loaded = False
 
+
+class AssetDelegate(QStyledItemDelegate):
+    def __init__(self,parent,radius):
+        super().__init__(parent)
+        self.radius = radius
+        self.border_width = 2
+        self.text_offset = 4
+        self.max_display_name_length = 10
+        self.favorite_icon_offset = 4
+        self.pen = QPen()
+        self.pen.setWidth(self.border_width)
+
+    def sizeHint(self, option, index):
+        width = self.parent().gridSize().width()
+        height = self.parent().gridSize().width()
+        return QSize(width,height)
+    def parent(self)->"AssetCardView":
+        return super().parent()
+    def paint(self, painter: typing.Optional[QPainter], option: QStyleOptionViewItem, index: QModelIndex):
+        name = index.data(Qt.ItemDataRole.DisplayRole)
+        image = index.data(Qt.ItemDataRole.DecorationRole)
+        width = self.parent().gridSize().width()
+        height = self.parent().gridSize().width()
+        spacing = self.parent().spacing()
+
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing,True)
+
+        rect = QRect(
+            int(option.rect.center().x()-width/2+spacing/2),
+            int(option.rect.center().y()-height/2+spacing/2),
+            width-spacing,
+            height-spacing
+        )
+
+        selected = option.state & QStyle.State_Selected
+        hovered = option.state & QStyle.State_MouseOver
+
+        #绘制边框
+        border_color = None
+        if selected:
+            border_color = QColor(0, 174, 255)
+        elif hovered:
+            border_color = QColor(112, 112, 112)
+        if border_color:
+            self.pen.setColor(border_color)
+            painter.setPen(self.pen)
+            painter.drawRoundedRect(rect, self.radius, self.radius,Qt.SizeMode.RelativeSize)
+
+        #绘制内容
+        content_rect = rect.adjusted(
+            self.border_width,
+            self.border_width,
+            -self.border_width,
+            -self.border_width
+        )
+        #设置一个遮罩
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(content_rect),self.radius,self.radius)
+        painter.setClipPath(path)
+
+        #绘制背景
+        painter.fillRect(content_rect, QColor(0,0,0))
+        #绘制图像
+        if image:
+            image_rect_src = QRect(0,0,image.width(),image.height())
+            painter.drawPixmap(content_rect,image,image_rect_src)
+
+        #复原笔刷效果
+        painter.restore()
+        #绘制文本
+        name = name
+        if len(name) > self.max_display_name_length:
+            name = name[0:self.max_display_name_length] + "..."
+        if hovered:
+            self.pen.setColor(QColor(255,255,255))
+            painter.drawText(content_rect.bottomLeft() + QPoint(self.text_offset,-self.text_offset),name)
+        
+class AssetCardView(QListView):
+    item_selected = pyqtSignal(QModelIndex)
+    def __init__(self, parent = ...):
+        super().__init__(parent)
+        #初始化一些变量
+        self.card_size = 200
+        self.radius = 5
+        self.__init_widget_properties()
+        self.__init_widget_connections()
+        self.enalbe_opengl()
+        # 第一次加载数据
+        self.model().load_more_data()
+    def __init_widget_properties(self):
+        self.setViewMode(QListView.ViewMode.IconMode)
+        self.setGridSize(QSize(self.card_size,self.card_size))
+        self.setSpacing(5)                  # 设置项目间距
+        self.setMovement(QListView.Static)   # 禁止拖动项目
+        self.setResizeMode(QListView.ResizeMode.Fixed) # 自动调整布局
+        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.setUniformItemSizes(True)#所有项目大小相同,提醒性能
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)#设置右键菜单策略
+        self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+
+        #优化滚动效果
+        self.animation = QPropertyAnimation(self.verticalScrollBar(), b"value")
+        self.animation.setEasingCurve(QEasingCurve.OutQuad)
+        self.animation.setDuration(300)  # 动画持续时间(毫秒)
+
+        #初始化渲染效果
+        self.delegate = AssetDelegate(self,self.radius)
+        self.setItemDelegate(self.delegate)
+        #初始化数据模型
+        self.setModel(DynamicListModel(self))
+    def wheelEvent(self, event):
+        # 停止当前动画
+        self.animation.stop()
+        
+        # 计算目标位置
+        current = self.verticalScrollBar().value()
+        delta = event.angleDelta().y()
+        target = current - delta * 4  # 减小滚动步长
+        
+        # 设置动画参数
+        self.animation.setStartValue(current)
+        self.animation.setEndValue(target)
+        
+        # 启动动画
+        self.animation.start()
+        
+        event.accept()  # 阻止默认滚动行为
+
+
+    def enalbe_opengl(self):
+        if QApplication.testAttribute(Qt.ApplicationAttribute.AA_UseOpenGLES):
+            viewport = QOpenGLWidget()
+            self.setViewport(viewport)
+    def __init_widget_connections(self):
+        self.verticalScrollBar().valueChanged.connect(self.vertical_scall_changed)
+        self.customContextMenuRequested.connect(self.show_context_menu)
+    def model(self)->DynamicListModel:
+        return super().model()
+    def show_context_menu(self,pos):
+        index = self.indexAt(pos)
+        # 创建菜单
+        menu = QMenu(self)
+        if index.isValid():  # 如果点击在有效项目上
+            # 添加项目相关操作
+            action = menu.addAction("复制资产ID")
+            action.triggered.connect(lambda :pyperclip.copy(index.data(Qt.ItemDataRole.UserRole+1).AssetID))
+            action = menu.addAction("打开文件夹")
+            action.triggered.connect(lambda:self.go_to_file(index))
+            action = menu.addAction("删除资产")
+            action.triggered.connect(lambda :self.delete_asset(index))
+            action = menu.addAction("编辑资产")
+            action.triggered.connect(lambda:self.edit_item(index))
+        menu.exec_(self.viewport().mapToGlobal(pos))
+    def go_to_file(self,index:QModelIndex):
+        os.startfile(os.path.normpath(index.data(Qt.ItemDataRole.UserRole+1).rootFolder))
+    def delete_asset(self,index:QModelIndex):
+        data:AssetItem = index.data(Qt.ItemDataRole.UserRole+1)
+        w = Dialog("提示",f"是否删除资产{data.name}?")
+        w.setTitleBarVisible(False)
+        w.setContentCopyable(True)
+        if w.exec() and Backend.Get().isBackendAvailable():
+            ut.removeFolder(data.rootFolder)#删除资产目录
+            Backend.Get().deleteAssetFromDB(data.AssetID)#从数据库中删除
+            self.model().removeRow(index.row(),QModelIndex())#从当前显示的列表中删除
+    def edit_item(self,index:QModelIndex):
+        editInterface = AssetsEditInterface(self.parentWidget().parentWidget().parentWidget().parentWidget().parentWidget())
+        editInterface.loadDataFromModelindex(index)
+        editInterface.show()
+    def vertical_scall_changed(self,value):
+        max_vale = self.verticalScrollBar().maximum()
+        rate = value/(max_vale+0.000001)
+        if rate>0.99:
+            self.model().load_more_data()
+# ------------------  重写一些事件 ------------------
+    def resizeEvent(self, e):
+        itemsPerRow = 3
+        width = self.width()-2
+        if width <= self.card_size:
+            width = 685
+        if width < 412:
+            itemsPerRow = 2
+        elif width > 685 and width < 1200:
+            itemsPerRow = 4
+        elif width > 1200:
+            itemsPerRow = 5
+        cardSize = round(width/itemsPerRow - 2 * self.spacing() )
+        self.setGridSize(QSize(cardSize,cardSize))
+        return super().resizeEvent(e)
+    def selectionChanged(self, selected, deselected):
+        if selected.isEmpty():
+            return
+        index = selected.indexes()[0]
+        Log(f"设置当前选中的索引为{index.row()}","HomePage")
+        self.item_selected.emit(index)
+
+        return super().selectionChanged(selected, deselected)
 
 class InfoPanelImagePreivew(QFrame):
     def __init__(self,parent):
@@ -133,6 +416,7 @@ class InfoPanelImagePreivew(QFrame):
         self.setFixedHeight(300)
     def __reloadImage(self):
         self.backGroundImage = scaleMap(self.width(),self.height(),self.backGroundImageUri)
+        self.update()
     def setImgae(self,imagePath:str):
         self.backGroundImageUri = imagePath
         self.__reloadImage()
@@ -147,7 +431,6 @@ class InfoPanelImagePreivew(QFrame):
     def resizeEvent(self, a0: QResizeEvent | None) -> None:
         self.__reloadImage()
         return super().resizeEvent(a0)
-
 
 class InfoPanel(QFrame,Translator):
     onExportClicked = pyqtSignal()
@@ -308,9 +591,6 @@ class ItemHeader(QFrame,Translator):
         self.combox_subcategory.addItem("请选择资产次级分类")
         self.combox_subcategory.setFixedWidth(200)
 
-        self.pb_refresh =ToolButton(FIF.SYNC,self)
-
-
 
         self.__initWidget()
 
@@ -326,7 +606,6 @@ class ItemHeader(QFrame,Translator):
         self.comboxWidgetLayout.addWidget(self.combox_category)
         self.comboxWidgetLayout.addWidget(self.combox_subcategory)
         self.comboxWidgetLayout.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.comboxWidgetLayout.addWidget(self.pb_refresh,alignment=Qt.AlignmentFlag.AlignRight)
         self.searchBar.searchSignal.connect(self.__search)
         self.searchBar.clearSignal.connect(self.__clear)
         self.searchBar.returnPressed.connect(lambda:self.__search(self.searchBar.text()))
@@ -341,204 +620,47 @@ class ItemHeader(QFrame,Translator):
         self.clearSignal.emit()
 
 
-class FlowWidget(QWidget):
-    RightMouseclicked = pyqtSignal()
+class HomeInterface(QWidget,Translator):
     def __init__(self,parent=None):
-        super().__init__(parent=parent)
-    def mouseReleaseEvent(self, a0: QMouseEvent | None) -> None:
-        if a0.button() == 1:
-            self.RightMouseclicked.emit()
-
-
-class MySmoothScrollArea(SmoothScrollArea):
-    def __init__(self, parent=None):
         super().__init__(parent)
-    def SetValueToCurrentSelected(self,index:int):
-        
-        pass
+        self.content_padding = 20
 
-class ItemCardView(QWidget,Translator):
-    assetDelete = pyqtSignal()
-    assetsReloaded = pyqtSignal()
-    def __init__(self,parent=None):
-        super().__init__(parent=parent)
-        # values
-        self.perItemSpacing = 8
-        self.initPerItemCardSize = 256
-        self.cards:list[ItemCard] = []
-        self.flowLayoutSideMargins = 30
-        self.currentSelectedIndex = -1
-
-        # widgets
-        self.rootLayout = QVBoxLayout(self)
-        self.view = QFrame(self)
-        self.viewLayout = QHBoxLayout(self.view)
-
-
-        self.scrollArea = MySmoothScrollArea(self.view)
-        self.infoPanel = InfoPanel(self)
-        self.flowWidget = FlowWidget(self.scrollArea)
-        self.flowLayout = FlowLayout(self.flowWidget,False,True)
-        self.LoadCardCountPerTimes = 36
-        self.currentLoadedCardCount = 0
-        # methods
         self.__initWidget()
+        self.__initConnection()
+        self.__setQss()
+        self.setObjectName("home_interface")
 
-        self.loadItems()
     def __initWidget(self):
-
-        self.view.setObjectName("ItemView")
-        self.rootLayout.addWidget(self.view)
+        self.rootLayout = QVBoxLayout(self)
         self.rootLayout.setContentsMargins(0,0,0,0)
 
+        widget_header = QWidget(self)
+        layout_header = QVBoxLayout(widget_header)
+        self.rootLayout.addWidget(widget_header)
+
+        self.item_header = ItemHeader(self)
+        layout_header.addWidget(self.item_header)
 
 
-        self.viewLayout.addWidget(self.scrollArea)
-        self.viewLayout.addWidget(self.infoPanel)
-        self.viewLayout.setContentsMargins(0,0,0,0)
 
-        self.scrollArea.setWidget(self.flowWidget)
-        self.scrollArea.setWidgetResizable(True)#需要使组件可以重设大小
-        self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.scrollArea.backgroundRole()
-        self.scrollArea.setViewportMargins(0,0,0,0)
-        self.scrollArea.setObjectName("ItemCardViewScrollArea")
-        self.scrollArea.verticalScrollBar().valueChanged.connect(self.loadItemsByScrollBar)
+        widget_content = QWidget(self)
+        layout_content = QHBoxLayout(widget_content)
+        layout_content.setContentsMargins(self.content_padding,0,10,0)
+        layout_content.setSpacing(self.content_padding)
+        self.rootLayout.addWidget(widget_content)
 
-
-        self.flowWidget.setObjectName("flowwidget")
-        self.flowWidget.RightMouseclicked.connect(lambda: self.setSelectedItem(-1))
-
-        self.infoPanel.onExportClicked.connect(self.exportToUnreal)
-
-
-        self.flowLayout.setVerticalSpacing(self.perItemSpacing)
-        self.flowLayout.setHorizontalSpacing(self.perItemSpacing)
-        self.flowLayout.setContentsMargins(self.flowLayoutSideMargins,0,self.flowLayoutSideMargins,0)
-        # 默认关闭信息面板
-        self.infoPanel.close()
-
-        # 从数据库加载数据
-        self.reloadItems()
-    def setPerCardSize(self,size):
-        for card in self.cards:
-            card.setSize(size)
-    def setSelectedItem(self,index:int):
-        Log(f"设置当前选中的索引为{index}","HomePage")
-        #清除当前选择的项目
-        if len(self.cards) > 0 and self.currentSelectedIndex < len(self.cards):
-            self.cards[self.currentSelectedIndex].setSelected(False)
-        self.infoPanel.close()
-        #如果输入的索引大于0,表示选中了有效的项目,否则说明只是清空项目
-        if index >=0:
-            libraryAssetData = self.filteredAssetDatas[index]
-            self.cards[index].setSelected(True)
-            self.infoPanel.setPanelInfo(
-                libraryAssetData["previewFile"],
-                libraryAssetData["name"],
-                self.tra(libraryAssetData["type"]),
-                libraryAssetData["tags"],
-                libraryAssetData["category"],
-                libraryAssetData["subcategory"],
-                libraryAssetData["lods"]
-                )
-            self.infoPanel.show()
-            self.scrollArea.SetValueToCurrentSelected(self.currentSelectedIndex)
-        self.currentSelectedIndex = index
-    def clearAllCards(self):
-        self.flowLayout.removeAllWidgets()
-        for card in self.cards:
-            card.close()
-            card.deleteLater()
-            card = None
-        self.cards = []
-    def loadItemsByScrollBar(self,value):
-        if value/(self.scrollArea.verticalScrollBar().maximum()+0.1) >= 0.98:
-            self.loadItems()
-    def loadItems(self):
-        for i in range(self.currentLoadedCardCount,self.currentLoadedCardCount+self.LoadCardCountPerTimes):
-            if i < len(self.filteredAssetDatas):
-                self.addItemCard(self.filteredAssetDatas[i]["previewFile"],self.filteredAssetDatas[i]["name"],self.filteredAssetDatas[i]["AssetID"])
-                self.currentLoadedCardCount+=1
-            else:
-                return
-    def loadItemFromDataBaseAndMakeItAbs(self):
-        if Backend.Get().isBackendAvailable():
-            datas = Backend.Get().getAssetsList()
-            remoteAssetLibrary = Backend.Get().getAssetRootPath()
-        else:
-            datas = []
-        newDatas = []
-        for data in datas:
-            data["rootFolder"] = os.path.join(remoteAssetLibrary,data["rootFolder"])
-            data["previewFile"] = os.path.join(remoteAssetLibrary,data["rootFolder"],data["previewFile"])
-            data["jsonUri"] =os.path.join(remoteAssetLibrary,data["rootFolder"],data["jsonUri"])
-            newDatas.append(data)
-        self.loadedAssets = newDatas
-        return newDatas
-    def FilterCards(self,type_index:int,category_index:int,subcategory_index:int,search_key_word:str):
-        #load all assets
-        self.clearAllCards()
-        self.filteredAssetDatas = []
-        for assetData in self.loadedAssets:
-            if type_index >= 1:
-                type = list(ut.AssetType.__members__.values())[type_index-1]
-                if type.value != assetData['type']:
-                    continue
-            if category_index >= 1:
-                category = ut.GetCategorys(0)[category_index-1]
-                if category != assetData['category']:
-                    continue
-            if subcategory_index >=1:
-                subcategory = ut.GetSubCategorys(category_index-1)[subcategory_index-1]
-                if subcategory != assetData['subcategory']:
-                    continue
-            if search_key_word != "":
-                if search_key_word.lower() not in assetData["SearchWords"].lower():
-                    continue
-            self.filteredAssetDatas.append(assetData)
-        self.currentLoadedCardCount = 0
-        self.loadItems()
-    def reloadItems(self):
-        self.loadItemFromDataBaseAndMakeItAbs()
-        self.clearAllCards()
-        self.currentLoadedCardCount = 0
-        self.filteredAssetDatas = self.loadedAssets
-        self.loadItems()
-        self.assetsReloaded.emit()
-    def addItemCard(self,imagepath:str,name:str,assetID:str):
-        index = len(self.cards)
-        itemCard = ItemCard(self,index,imagepath,name,assetID)
-        itemCard.clicked.connect(self.setSelectedItem)
-        itemCard.goToFile.connect(self.goToFile)
-        itemCard.deleteItem.connect(self.deleteAsset)
-        itemCard.editItem.connect(self.editItem)      
-        self.cards.append(itemCard)
-        self.flowLayout.addWidget(self.cards[index])
-    def editItem(self,index:int):
-        libraryAssetData = self.filteredAssetDatas[index]
-        editInterface = AssetsEditInterface(self.parentWidget().parentWidget().parentWidget().parentWidget())
-        editInterface.loadDataFromAsset(libraryAssetData)
-        editInterface.show()
-    def goToFile(self,index:int):
-        libraryAssetData = self.filteredAssetDatas[index]
-        os.startfile(os.path.normpath(libraryAssetData["rootFolder"]))
-    def deleteAsset(self,index:int):
-        libraryAssetData = self.filteredAssetDatas[index]
-        w = Dialog("提示",f"是否删除资产{libraryAssetData['name']}?")
-        w.setTitleBarVisible(False)
-        w.setContentCopyable(True)
-        if w.exec() and Backend.Get().isBackendAvailable():
-            ut.removeFolder(libraryAssetData["rootFolder"])
-            Backend.Get().deleteAssetFromDB(libraryAssetData["AssetID"])
-            self.reloadItems()
-        self.assetDelete.emit()
+        
+        self.asset_card_view = AssetCardView(self)
+        self.info_panel = InfoPanel(self)
+        self.info_panel.close()
+        layout_content.addWidget(self.asset_card_view)
+        layout_content.addWidget(self.info_panel)
     def exportToUnreal(self):
         if ut.sendAssetToUE(
-            self.filteredAssetDatas[self.currentSelectedIndex],
+            self.asset_card_view.currentIndex().data(Qt.ItemDataRole.UserRole+1),
             Config.Get().getSendSocketAddress(),
-            self.infoPanel.combox_res.currentIndex(),
-            self.infoPanel.combox_lod.currentText()):
+            self.info_panel.combox_res.currentIndex(),
+            self.info_panel.combox_lod.currentText()):
             InfoBar.success(
                 title=self.tra('Notice:'),
                 content=self.tra("Export successful"),
@@ -558,59 +680,29 @@ class ItemCardView(QWidget,Translator):
                 duration=2000,
                 parent=self
             )
-    def resizeItemCards(self):
-        itemsPerRow = 3
-        width = self.flowWidget.width()-2 * self.flowLayoutSideMargins
-        if width <= self.initPerItemCardSize:
-            width = 685
-        if width < 412:
-            itemsPerRow = 2
-        elif width > 685 and width < 1200:
-            itemsPerRow = 4
-        elif width > 1200:
-            itemsPerRow = 5
-        cardSize = round(width/itemsPerRow - 2 * self.perItemSpacing )
-        self.setPerCardSize(cardSize)
-    def paintEvent(self, a0: QPaintEvent | None) -> None:
-        self.resizeItemCards()
-        return super().paintEvent(a0)
-    def closeEvent(self, a0: QCloseEvent | None) -> None:
-        return super().closeEvent(a0)
-    
-
-
-class EidtInterface(QWidget):
-    def __init__(self,parent=None):
-        super().__init__(parent)
-        self.resize(800,600)
-
-
-class HomeInterface(QWidget):
-    def __init__(self,parent=None):
-        super().__init__(parent)
-        self.rootLayout = QVBoxLayout(self)
-        self.item_header = ItemHeader(self)
-        self.item_card_view = ItemCardView(self)
-        self.item_card_view.assetDelete.connect(self.FilterCardsPerLevel)
-        self.__initWidget()
-        self.__initConnection()
-        self.__setQss()
-        self.setObjectName("home_interface")
-
-    def __initWidget(self):
-        self.rootLayout.addWidget(self.item_header)
-        self.rootLayout.addWidget(self.item_card_view)
-        self.rootLayout.setContentsMargins(0,0,0,0)
-
     def __initConnection(self):
         self.item_header.searchSignal.connect(self.FilterCardsPerLevel)
         self.item_header.clearSignal.connect(self.FilterCardsPerLevel)
         self.item_header.combox_type.currentIndexChanged.connect(self.FilterCardsPerLevel)
         self.item_header.combox_category.currentIndexChanged.connect(self.changeSubcategoryComboxBaseOnCategory)
         self.item_header.combox_subcategory.currentIndexChanged.connect(self.FilterCardsPerLevel)
-        self.item_card_view.infoPanel.onTagClicked.connect(self.setSearchText)
-        self.item_card_view.assetsReloaded.connect(self.FilterCardsPerLevel)
-        self.item_header.pb_refresh.clicked.connect(self.item_card_view.reloadItems)
+        self.asset_card_view.item_selected.connect(self.update_info_panel)
+        self.asset_card_view.model().item_update.connect(self.update_info_panel)
+        self.info_panel.onTagClicked.connect(self.setSearchText)
+        self.info_panel.onExportClicked.connect(self.exportToUnreal)
+    def update_info_panel(self,index:QModelIndex):
+        data:AssetItem = index.data(Qt.ItemDataRole.UserRole + 1)
+        self.info_panel.setPanelInfo(
+            data.previewFile,
+            data.name,
+            data.type,
+            data.tags,
+            data.category,
+            data.subcategory,
+            data.lods
+        )
+        if not self.info_panel.isVisible():
+            self.info_panel.show()
     def setSearchText(self,text):
         self.item_header.searchBar.setText(text)
         self.FilterCardsPerLevel()
@@ -619,7 +711,7 @@ class HomeInterface(QWidget):
         category_index = self.item_header.combox_category.currentIndex()
         subcategory_index = self.item_header.combox_subcategory.currentIndex()
         search_key_word = self.item_header.searchBar.text()
-        self.item_card_view.FilterCards(type_index,category_index,subcategory_index,search_key_word)
+        self.asset_card_view.model().items_filter(type_index,category_index,subcategory_index,search_key_word)
     #根据主分类改变次级分类
     def changeSubcategoryComboxBaseOnCategory(self,index):
         index = index - 1
@@ -630,7 +722,8 @@ class HomeInterface(QWidget):
         else:
             self.item_header.combox_subcategory.clear()
             self.item_header.combox_subcategory.addItem("请选择资产次级分类")
-
+    def append_new_item(self,item:dict):
+        self.asset_card_view.model().append_row(item)
     def __setQss(self):
         StyleSheet.HOME_INTERFACE.apply(self)
 

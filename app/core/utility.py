@@ -701,8 +701,8 @@ def fixNormalMiss(rootPath:str,asset:Asset,jsonuri:str):
     return asset
 
 
-def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod_level:str):
-    with open(libraryAssetData["jsonUri"],'r',encoding="utf-8") as f:
+def sendAssetToUE(assetImte,address:tuple[str,int],sizeIndex:int,lod_level:str):
+    with open(assetImte.jsonUri,'r',encoding="utf-8") as f:
             asset = Asset.from_dict(json.loads(f.read()))
     rootFolder = os.path.join(Backend.Get().getAssetRootPath(),asset.rootFolder)
     
@@ -756,7 +756,7 @@ def sendAssetToUE(libraryAssetData:dict,address:tuple[str,int],sizeIndex:int,lod
         #尝试修复法线贴图路径
         if not Normal:
             Log(f"法线贴图未找到,尝试寻找")
-            asset = fixNormalMiss(rootFolder,asset,libraryAssetData["jsonUri"])
+            asset = fixNormalMiss(rootFolder,asset,assetImte.jsonUri)
         #获取对应的mesh
         if lod_level == "original":
             meshUri = os.path.join(rootFolder,asset.OriginMesh.uri)
@@ -940,6 +940,7 @@ def AddAssetDataToDataBase(asset:Asset):
             )
         
         Backend.Get().addAssetToDB(assetToLibraryData)
+        return assetToLibraryData
 
 
 class CustomWorker(QThread):
@@ -1070,7 +1071,19 @@ def GetUDIMTextures(uri:str):
             break
     return textures
 
+def fix_error_image(image_uri:str,background_color:tuple[float]):
+    _,ext = os.path.splitext(image_uri)
+    if ext != ".jpg":
+        return
+    image = Image.open(image_uri,"r")
+    if image.format == "PNG":
+        background = Image.new("RGB", image.size, background_color)
+        r, g, b, a = image.split()
 
+        background.paste(image,(0,0),mask=a)
+
+        background.save(image_uri,"JPEG")
+        
 if __name__ == "__main__":
     exePath = "D:\Documents\ZCXCode\MyBridge\dist\MyBridge\MyBridge.exe"
     getExeVersion(exePath)

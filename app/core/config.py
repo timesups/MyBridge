@@ -5,7 +5,6 @@ class Config():
     instance = None
     def __init__(self) -> None:
         self.localAssetLibraryFolder = os.path.join(os.environ['USERPROFILE'], 'Documents',"MyBridge")
-        self.localDataBsePath = os.path.join(self.localAssetLibraryFolder,"AssetDataCache.json")
         self.localTempFolder = os.path.join(self.localAssetLibraryFolder,"Temp")
         self.localConfigSavePath = os.path.join(self.localAssetLibraryFolder,"config.json")
 
@@ -25,7 +24,6 @@ class Config():
         with open(self.localConfigSavePath,'r',encoding="utf-8") as f:
             data = json.loads(f.read())
         try:
-            self.remoteAssetLibraryFolder = data["remoteAssetLibraryFolder"]
             self.sockeAddress = data["sockeAddress"]
             self.socketSendPort = data["socketSendPort"]
             self.exportTextureSizeIndex = data["exportTextureSizeIndex"]
@@ -35,7 +33,6 @@ class Config():
             pass
     def saveConfig(self):
         data = dict(
-            remoteAssetLibraryFolder = self.remoteAssetLibraryFolder,
             sockeAddress = self.sockeAddress,
             socketSendPort = self.socketSendPort,
             exportTextureSizeIndex = self.exportTextureSizeIndex,

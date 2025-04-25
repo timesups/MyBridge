@@ -1,6 +1,5 @@
 import requests
 from .config import Config
-import app.core.utility as ut
 import json
 from app.core.Log import Log
 
@@ -38,20 +37,18 @@ class Backend():
             return response.json()
         else:
             return False
-    def check_update(self):
+    def check_update(self,version:str):
         if not Backend.Get().isBackendAvailable():
             Log(f"服务器连接失败,停止获取更新","backend")
             return 
         #检查更新
         Log("开始检查更新","backend")
-        exePath = ut.GetExePath()
-        if not exePath:
-            Log("当前尚未打包,跳过更新")
-            return False
-        version = ut.getExeVersion(exePath)
-        Log(f"当前程序的版本为{version}","backend")
         response = requests.get(Config.Get().backendAddress+f"/update/check/{version}")
-        result = json.loads(response.text)['result']
+        try:
+            #有时,当前版本未上传导致无法获取新版本,后续应该在服务端修改
+            result = json.loads(response.text)['result']
+        except:
+            result = False
         if not result:
             Log(f"当前版本不需要更新","backend")
             return False

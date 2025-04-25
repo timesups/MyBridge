@@ -1,28 +1,7 @@
-ItemCard {
-    background-color: rgb(30, 30, 30);
-    border-radius: 8px;
-    color: rgb(255, 255, 255);
-    font: 22px 'Segoe UI', 'PingFang SC';
-}
-ItemCard[isSelected=true]{
-    border: 2px solid rgb(0, 174, 255);
-}
-
-ItemCard:hover{
-    border: 2px solid rgb(112, 112, 112);
-}
-
-ItemCard:hover[isSelected=true]{
-    border: 2px solid rgb(0, 174, 255);
-}
-
 #flowwidget,#ItemView{
     background-color: rgb(39, 39, 39);
 }
 
-ItemCardView{
-    background-color: transparent;
-}
 
 #ItemCardViewScrollArea{
     border: 0px solid rgb(39, 39, 39);
@@ -77,4 +56,26 @@ ItemCardContextMenu
 ItemCardContextMenu:hover
 {
     background-color: rgb(0, 174, 255);
+}
+
+
+AssetCardView{
+    background-color: rgb(28, 28, 28);
+    color: rgb(255, 255, 255);
+    font: 18px 'Segoe UI', 'PingFang SC';
+    border: 0px;
+}
+
+
+QScrollBar:vertical {
+    width: 8px;
+    background: transparent;
+}
+QScrollBar::handle:vertical {
+    background: rgba(150, 150, 150, 120);
+    min-height: 30px;
+    border-radius: 4px;
+}
+QScrollBar::handle:vertical:hover {
+    background: rgba(120, 120, 120, 150);
 }
