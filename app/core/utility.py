@@ -6,31 +6,23 @@ import copy
 import re
 import json
 from PIL import Image,ImageFile
-import pyexr
-import Imath
-import numexpr as ne
+
 import socket
-from tinydb import TinyDB, Query
 import sys
 from qfluentwidgets import Dialog
 from win32com.client import Dispatch
 from .backend import Backend
-
 from PyQt5.QtCore import QThread
 from PyQt5.QtCore import pyqtSignal
 from enum import Enum
 from dataclasses import dataclass,field
-
 from app.core.Log import Log
-
 import socket
 
 
 UPDATE_SERVE_PATH = r"\\192.168.3.252\中影年年文化传媒有限公司\6动画基地\制作中心\地编组\Z_赵存喜\MyBirdge\update"
 TextureExtensions = [".png",'.exr','.jpg']
 ModelExtensions = [".fbx",".ztl"]
-FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
-
 
 
 class MyBridgetGlobalEnum(Enum):
@@ -261,34 +253,9 @@ def ClassifyFilesFormFolder(folder:str):
             assetName = basename
     return dict(assetName = assetName,images = images,models=models)
 
-def encode_to_srgb(x):
-    a = 0.055
-    return ne.evaluate("""where(
-                            x <= 0.0031308,
-                            x * 12.92,
-                            (1 + a) * (x ** (1 / 2.4)) - a
-                          )""")
 
 
-def exr_to_srgb(exrfile):
-    Log(f"将EXR转换为SRGB")
-    try:
-        array =  pyexr.read(exrfile)
-    except:
-        Log(f"EXR文件读取失败")
-        return False
-    Log(f"EXR文件读取成功")
-    result = encode_to_srgb(array) * 255.
-    present_channels = ["R", "G", "B", "A"][:result.shape[2]]
-    channels = "".join(present_channels)
-    if len(channels) == 1:
-        channels = "L"
-        result = result.mean(axis=2)
-    try:
-        Log(f"将EXR转换为SRGB完成")
-        return Image.fromarray(result.astype('uint8'), channels)
-    except:
-        return False
+
 
 def readImage(filePath)->ImageFile:
     Log(f"读取图片{filePath}")

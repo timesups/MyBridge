@@ -1,27 +1,15 @@
 from qfluentwidgets import (Dialog,PushButton,IndeterminateProgressRing,SubtitleLabel)
-from qfluentwidgets import (PushButton,SmoothScrollArea,ComboBox,
-                            TitleLabel,CheckBox,LineEdit,
-                            LineEditButton,IndeterminateProgressRing,
-                            InfoBar,InfoBarPosition,FlowLayout,Dialog,ToolButton)
+from qfluentwidgets import (PushButton,ComboBox,LineEdit,IndeterminateProgressRing,Dialog,ToolButton)
 from qfluentwidgets import FluentIcon as FIF
 
 from PyQt5.QtWidgets import (QApplication,QWidget,
                              QHBoxLayout,QVBoxLayout,
-                             QLabel,QLineEdit,QTabWidget,
-                             QFileDialog,QTabBar,QSizePolicy)
+                             QLabel,QTabWidget,)
 
-from PyQt5.QtWidgets import (QApplication,QWidget,QScrollArea,
-                             QFrame,QHBoxLayout,QVBoxLayout,
-                             QAction,QStyleOption)
-from PyQt5.QtGui import (QIcon, QMouseEvent, QPaintEvent,
-                         QBrush,QPainter,QImage,QPixmap,QColor, 
-                         QResizeEvent,QImageReader)
-from PyQt5.QtCore import QObject, QRect,Qt,QPoint,QEasingCurve,pyqtSignal,QThread,QPropertyAnimation
-
-
-import sys
-import os
-
+from PyQt5.QtWidgets import (QApplication,QWidget,
+                             QFrame,QHBoxLayout,QVBoxLayout,)
+from PyQt5.QtGui import (QMouseEvent, QPaintEvent,QPainter,QPixmap,QColor)
+from PyQt5.QtCore import QObject, QRect,Qt,pyqtSignal,QThread,QPropertyAnimation
 
 def showDialog(title,content,parent):
     w = Dialog(title,content,parent)
@@ -31,21 +19,11 @@ def showDialog(title,content,parent):
 
 
 
-
-
-
-
-
-
-
 class TabWidget(QTabWidget):
     def __init__(self,parent=None):
         super().__init__(parent)
         self.setObjectName("tableWidget")
         self.tabBar().close()
-
-
-
 
 
 class FadeToolButton(ToolButton):
@@ -68,11 +46,6 @@ class FadeToolButton(ToolButton):
         self.animation.setStartValue(startValue)  # 起始透明度为 1.0（完全不透明）
         self.animation.setEndValue(endValue)    # 结束透明度为 0.0（完全透明）
         self.animation.start()
-
-
-
-
-
 
 
 class TabBarButton(QWidget):
@@ -151,14 +124,11 @@ class QLine(QFrame):
         line.SetVertical()
         return line
 
-    
 
 def load_and_fix_image(image_uri):
     pass
     # assert not will_trigger_warning(image_uri),image_uri
     # return QPixmap(image_uri)
-        
-
 
 def scaleMap(width:int,height:int,mapPath:str)-> QPixmap:
     original_pixelmap = QPixmap(mapPath)

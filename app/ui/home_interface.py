@@ -27,7 +27,6 @@ from app.core.common_widgets import scalePixelMap,scaleMap,StringButton,LoadPixm
 import app.core.utility as ut
 from app.core.config import Config
 from app.core.translator import Translator
-from app.core.icons import Icons
 from ..core.backend import Backend
 from .assets_import_interface import AssetsEditInterface
 

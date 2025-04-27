@@ -1,5 +1,4 @@
-from qfluentwidgets import (PrimaryPushSettingCard,TitleLabel,
-                            PushSettingCard,SettingCardGroup,SettingCard,
+from qfluentwidgets import (PrimaryPushSettingCard,TitleLabel,SettingCardGroup,SettingCard,
                             LineEdit,InfoBar,InfoBarPosition)
 from qfluentwidgets import FluentIcon as FIF
 
@@ -7,10 +6,8 @@ from PyQt5.QtWidgets import (QWidget,QFileDialog,QVBoxLayout)
 from PyQt5.QtGui import (QIcon)
 from PyQt5.QtCore import Qt,pyqtSignal
 from qfluentwidgets.common.icon import FluentIconBase
-import functools
 
 
-import app.core.ImportBridgeAsset as ib
 from app.core.Log import Log
 from app.core.config import Config
 from app.core.translator import Translator
