@@ -49,24 +49,8 @@ def pack_mybridge_by_pyinstaller(debug=False):
     if not debug:
         opts.append('--windowed')# GUI应用，不显示控制台
     run(opts)
-def pack_mybridge_by_cz_freeze(debug=False):
-    from cx_Freeze import setup,Executable
-    version = get_version()
-    build_exe_options = {
-        "packages":[],# 需要额外包含的包
-        "excludes":[],# 需要排除的包
-        "include_files": [] # 包含的非python文件
-    }
 
-    executables = [Executable("main.py",base=None)]
-
-    setup(
-        name="MyBridge",
-        version = ".".join(version),
-        description="MyBridge Description",
-        options = {'build_exe':build_exe_options},
-        executables = executables
-    )
+    
 def pack_instaaller():
     if not os.path.exists(mybridge_build_path):
         print("打包的程序文件不存在,安装包生成失败")
