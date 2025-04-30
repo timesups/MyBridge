@@ -727,7 +727,6 @@ class AssetsEditInterface(FrameLessFloatingWindow):
         self.currentOriginalAsset.type = asset.type
         self.currentOriginalAsset.category = asset.category
         self.currentOriginalAsset.subcategory = asset.subcategory
-
         utility.update_asset(self.currentOriginalAsset,Backend.Get().getAssetRootPath())
         
         data = self.index.data(Qt.ItemDataRole.UserRole+1)
@@ -736,6 +735,7 @@ class AssetsEditInterface(FrameLessFloatingWindow):
         data.type = asset.type.value
         data.category = asset.category
         data.subcategory = asset.subcategory
+        data.SearchWords = f"{data.name} {data.AssetID} {data.category} {data.subcategory}"+" ".join(data.tags)
         self.index.model().setData(self.index,data,Qt.ItemDataRole.UserRole+1)
         self.close()
         self.deleteLater()
