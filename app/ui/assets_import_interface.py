@@ -779,10 +779,6 @@ class AssetsImportInterface(QWidget):
         layout_tab_bar_close.setContentsMargins(10,10,10,10)
         layout_tab_bar_close.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
-        pb_close_all = ToolButton(FIF.CLOSE,widget_tab_bar_close)
-        pb_close_all.clicked.connect(lambda :self.deleteLater())
-        layout_tab_bar_close.addWidget(pb_close_all)
-
 
 
         widget_tab_bar_header = QWidget(widget_tab_bar)
